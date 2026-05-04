@@ -18,7 +18,7 @@ interface AppState {
   fetchSecrets: (tag?: string) => Promise<void>
   fetchAllTags: () => Promise<void>
   createSecret: (req: CreateSecretRequest) => Promise<void>
-  updateSecret: (req: UpdateSecretRequest) => Promise<void>
+  updateSecret: (req: UpdateSecretRequest) => Promise<SecretEntry>
   deleteSecret: (id: string) => Promise<void>
   searchSecrets: (query: string) => Promise<void>
   selectSecret: (secret: SecretEntry | null) => void
@@ -107,12 +107,12 @@ export const useStore = create<AppState>((set, get) => ({
         secrets: state.secrets.map((s) => (s.id === secret.id ? secret : s)),
         selectedSecret: state.selectedSecret?.id === secret.id ? secret : state.selectedSecret,
         isLoading: false,
-        showForm: false,
-        editingSecret: null,
       }))
       get().fetchAllTags()
+      return secret
     } catch (err) {
       set({ error: String(err), isLoading: false })
+      throw err
     }
   },
 

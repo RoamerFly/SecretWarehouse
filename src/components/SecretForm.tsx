@@ -6,7 +6,7 @@ import { ICON_OPTIONS } from '../types'
 const SENSITIVE_KEYWORDS = ['password', '密码', 'secret', '密钥', 'key', 'token', 'cvv', 'pin']
 
 export default function SecretForm() {
-  const { editingSecret, setShowForm, createSecret, updateSecret } = useStore()
+  const { editingSecret, setEditingSecret, setShowForm, createSecret, updateSecret } = useStore()
 
   const [title, setTitle] = useState(editingSecret?.title || '')
   const [fields, setFields] = useState<Array<{ key: string; value: string }>>(
@@ -40,6 +40,9 @@ export default function SecretForm() {
       } else {
         await createSecret({ title, fields: fieldsObj, tags: tagsArray, icon })
       }
+      // 保存成功后关闭表单
+      setEditingSecret(null)
+      setShowForm(false)
     } catch (err) {
       setError(String(err))
     } finally {
