@@ -14,6 +14,7 @@ import {
   Edit,
   Trash2,
   Clock,
+  CheckCircle2,
 } from 'lucide-react'
 import { SecretType } from '../types'
 
@@ -24,6 +25,15 @@ const typeIcons: Record<SecretType, React.ComponentType<{ className?: string }>>
   secure_note: FileText,
   ssh_key: Terminal,
   license: Award,
+}
+
+const typeColors: Record<SecretType, string> = {
+  website: 'from-green-500 to-emerald-600',
+  api_key: 'from-purple-500 to-violet-600',
+  bank_card: 'from-rose-500 to-pink-600',
+  secure_note: 'from-cyan-500 to-teal-600',
+  ssh_key: 'from-orange-500 to-amber-600',
+  license: 'from-indigo-500 to-blue-600',
 }
 
 const fieldLabels: Record<string, Record<string, string>> = {
@@ -71,10 +81,13 @@ export default function SecretDetail() {
 
   if (!selectedSecret) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center text-gray-500 dark:text-gray-400">
-          <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p>选择一个条目查看详情</p>
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
+            <FileText className="w-10 h-10 text-slate-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-400 mb-2">选择一个条目</h3>
+          <p className="text-sm text-slate-500">从左侧列表选择条目查看详情</p>
         </div>
       </div>
     )
@@ -82,6 +95,7 @@ export default function SecretDetail() {
 
   const Icon = typeIcons[selectedSecret.secret_type] || FileText
   const labels = fieldLabels[selectedSecret.secret_type] || {}
+  const gradientColor = typeColors[selectedSecret.secret_type] || 'from-slate-500 to-slate-600'
 
   const toggleSensitive = (field: string) => {
     setShowSensitive((prev) => ({ ...prev, [field]: !prev[field] }))
@@ -110,24 +124,30 @@ export default function SecretDetail() {
   }
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleString('zh-CN')
+    return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
+    <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="max-w-2xl mx-auto p-6">
+        {/* Header Card */}
+        <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 mb-4 backdrop-blur-sm">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <Icon className="w-6 h-6 text-blue-600 dark:text-blue-300" />
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradientColor} flex items-center justify-center shadow-lg`}>
+                <Icon className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h1 className="text-2xl font-bold text-white">
                   {selectedSecret.title}
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-slate-400 mt-1">
                   {getSecretTypeLabel(selectedSecret.secret_type)}
                 </p>
               </div>
@@ -135,27 +155,27 @@ export default function SecretDetail() {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleFavorite}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2.5 rounded-xl transition-all duration-200 ${
                   selectedSecret.favorite
-                    ? 'text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
-                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                    : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white'
                 }`}
                 title={selectedSecret.favorite ? '取消收藏' : '添加收藏'}
               >
                 <Star
-                  className={`w-5 h-5 ${selectedSecret.favorite ? 'fill-yellow-500' : ''}`}
+                  className={`w-5 h-5 ${selectedSecret.favorite ? 'fill-yellow-400' : ''}`}
                 />
               </button>
               <button
                 onClick={() => setEditingSecret(selectedSecret)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 rounded-lg"
+                className="p-2.5 rounded-xl bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white transition-all duration-200"
                 title="编辑"
               >
                 <Edit className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
+                className="p-2.5 rounded-xl bg-slate-700/50 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all duration-200"
                 title="删除"
               >
                 <Trash2 className="w-5 h-5" />
@@ -169,18 +189,18 @@ export default function SecretDetail() {
               {selectedSecret.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
+                  className="px-3 py-1 text-xs font-medium bg-slate-700/50 text-slate-300 rounded-lg border border-slate-600/50"
                 >
-                  {tag}
+                  #{tag}
                 </span>
               ))}
             </div>
           )}
         </div>
 
-        {/* Fields */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-4">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+        {/* Fields Card */}
+        <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 mb-4 backdrop-blur-sm">
+          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
             详细信息
           </h2>
           <div className="space-y-4">
@@ -190,47 +210,53 @@ export default function SecretDetail() {
               const label = labels[key] || key
 
               return (
-                <div key={key} className="flex items-center justify-between">
-                  <div className="flex-1 mr-4">
-                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                      {label}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <code
-                        className={`flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono ${
-                          isSensitive && !isVisible
-                            ? 'text-gray-400 dark:text-gray-500'
-                            : 'text-gray-900 dark:text-white'
-                        }`}
-                      >
+                <div key={key} className="group">
+                  <label className="block text-sm font-medium text-slate-400 mb-2">
+                    {label}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                      <code className={`flex-1 text-sm font-mono break-all ${
+                        isSensitive && !isVisible
+                          ? 'text-slate-500'
+                          : 'text-white'
+                      }`}>
                         {isSensitive && !isVisible
                           ? '••••••••••••••••'
                           : value}
                       </code>
-                      {isSensitive && (
-                        <button
-                          onClick={() => toggleSensitive(key)}
-                          className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                          {isVisible ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => copyToClipboard(value, key)}
-                        className={`p-2 transition-colors ${
-                          copiedField === key
-                            ? 'text-green-500'
-                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                        }`}
-                        title="复制"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
                     </div>
+                    {isSensitive && (
+                      <button
+                        onClick={() => toggleSensitive(key)}
+                        className={`p-3 rounded-xl transition-all duration-200 ${
+                          isVisible
+                            ? 'bg-blue-500/20 text-blue-400'
+                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {isVisible ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => copyToClipboard(value, key)}
+                      className={`p-3 rounded-xl transition-all duration-200 ${
+                        copiedField === key
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-white'
+                      }`}
+                      title="复制"
+                    >
+                      {copiedField === key ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
               )
@@ -238,43 +264,56 @@ export default function SecretDetail() {
           </div>
         </div>
 
-        {/* Metadata */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+        {/* Metadata Card */}
+        <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 backdrop-blur-sm">
+          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
             元数据
           </h2>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <Clock className="w-4 h-4" />
-              <span>创建时间: {formatDate(selectedSecret.created_at)}</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-2 rounded-lg bg-slate-700/50">
+                <Clock className="w-4 h-4 text-slate-400" />
+              </div>
+              <div>
+                <span className="text-slate-500">创建时间</span>
+                <p className="text-slate-300">{formatDate(selectedSecret.created_at)}</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <Clock className="w-4 h-4" />
-              <span>更新时间: {formatDate(selectedSecret.updated_at)}</span>
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-2 rounded-lg bg-slate-700/50">
+                <Clock className="w-4 h-4 text-slate-400" />
+              </div>
+              <div>
+                <span className="text-slate-500">更新时间</span>
+                <p className="text-slate-300">{formatDate(selectedSecret.updated_at)}</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Delete Confirmation Dialog */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl p-6 max-w-sm w-full mx-4">
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center mb-4">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">
                 确认删除
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                确定要删除 "{selectedSecret.title}" 吗？此操作无法撤回。
+              <p className="text-slate-400 mb-6">
+                确定要删除 "<span className="text-white">{selectedSecret.title}</span>" 吗？此操作无法撤回。
               </p>
-              <div className="flex justify-end gap-3">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  className="flex-1 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors"
                 >
                   取消
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
                 >
                   删除
                 </button>

@@ -9,8 +9,13 @@ mod db;
 mod models;
 mod search;
 
+use db::DbState;
+
 fn main() {
+    let db_state = DbState::new().expect("数据库初始化失败");
+
     tauri::Builder::default()
+        .manage(db_state)
         .invoke_handler(tauri::generate_handler![
             commands::create_secret,
             commands::get_secret,

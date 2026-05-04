@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useStore } from '../stores/useStore'
-import { X, RefreshCw } from 'lucide-react'
+import { X, RefreshCw, Sparkles } from 'lucide-react'
 import { SecretType, CreateSecretRequest } from '../types'
 
 const fieldLabels: Record<string, Record<string, string>> = {
@@ -57,8 +57,8 @@ export default function SecretForm() {
   useEffect(() => {
     if (!editingSecret) {
       const defaultFields: Record<string, string> = {}
-      const fields = fieldLabels[secretType] || {}
-      Object.keys(fields).forEach((key) => {
+      const fieldLabelsForType = fieldLabels[secretType] || {}
+      Object.keys(fieldLabelsForType).forEach((key) => {
         defaultFields[key] = ''
       })
       setFields(defaultFields)
@@ -110,33 +110,38 @@ export default function SecretForm() {
   const labels = fieldLabels[secretType] || {}
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {editingSecret ? '编辑条目' : '新增条目'}
-          </h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-white">
+              {editingSecret ? '编辑条目' : '新增条目'}
+            </h2>
+          </div>
           <button
             onClick={() => setShowForm(false)}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Type Selector (only for new entries) */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Type Selector */}
           {!editingSecret && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 类型
               </label>
               <select
                 value={secretType}
                 onChange={(e) => setSecretType(e.target.value as SecretType)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
               >
                 {secretTypes.map((type) => (
                   <option key={type.type_name} value={type.type_name}>
@@ -149,7 +154,7 @@ export default function SecretForm() {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
               标题
             </label>
             <input
@@ -158,14 +163,14 @@ export default function SecretForm() {
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="输入标题..."
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             />
           </div>
 
           {/* Dynamic Fields */}
           {Object.entries(labels).map(([key, label]) => (
             <div key={key}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 {label}
               </label>
               <div className="flex gap-2">
@@ -174,23 +179,23 @@ export default function SecretForm() {
                     value={fields[key] || ''}
                     onChange={(e) => handleFieldChange(key, e.target.value)}
                     rows={4}
-                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 font-mono text-sm transition-all duration-200 resize-none"
                   />
                 ) : (
                   <>
                     <input
-                      type={passwordFields.includes(key) && !showPassword ? 'password' : 'text'}
+                      type="text"
                       value={fields[key] || ''}
                       onChange={(e) => handleFieldChange(key, e.target.value)}
                       placeholder={`输入${label}...`}
-                      className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     />
                     {passwordFields.includes(key) && (
                       <button
                         type="button"
                         onClick={() => handleGeneratePassword(key)}
                         disabled={generatingField === key}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl transition-all duration-200 shadow-lg shadow-purple-500/25"
                         title="生成随机密码"
                       >
                         <RefreshCw
@@ -206,39 +211,36 @@ export default function SecretForm() {
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              标签 (用逗号分隔)
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              标签 <span className="text-slate-500">(用逗号分隔)</span>
             </label>
             <input
               type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="例如: 工作, 个人, 重要..."
-              className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
             />
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              {editingSecret ? '保存' : '创建'}
-            </button>
-          </div>
         </form>
+
+        {/* Actions */}
+        <div className="px-6 py-4 border-t border-slate-700/50 flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25"
+          >
+            {editingSecret ? '保存更改' : '创建条目'}
+          </button>
+        </div>
       </div>
     </div>
   )
 }
-
-// Helper to check if we should show password field in plain text
-const showPassword = true // Can be toggled with a state if needed
