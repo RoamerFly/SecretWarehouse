@@ -43,9 +43,11 @@ export const useStore = create<AppState>((set, get) => ({
   fetchSecrets: async (tag?: string) => {
     set({ isLoading: true, error: null })
     try {
+      // 处理收藏夹筛选
+      const isFavorite = tag === 'favorite'
       const secrets = await invoke<SecretEntry[]>('list_secrets', {
-        tag: tag || null,
-        favorite: null,
+        tag: isFavorite ? null : (tag || null),
+        favorite: isFavorite ? true : null,
         limit: null,
         offset: null,
       })
@@ -131,15 +133,21 @@ export const useStore = create<AppState>((set, get) => ({
 
   searchSecrets: async (query: string) => {
     if (!query.trim()) {
+      set({ searchQuery: '' })
       get().fetchSecrets(get().selectedTag || undefined)
       return
     }
     set({ isLoading: true, error: null, searchQuery: query })
     try {
       const secrets = await invoke<SecretEntry[]>('search_secrets', { query })
-      set({ secrets, isLoading: false })
+      // 只有当搜索词仍然是当前查询时才更新结果（防止竞态条件）
+      if (get().searchQuery === query) {
+        set({ secrets, isLoading: false })
+      }
     } catch (err) {
-      set({ error: String(err), isLoading: false })
+      if (get().searchQuery === query) {
+        set({ error: String(err), isLoading: false })
+      }
     }
   },
 

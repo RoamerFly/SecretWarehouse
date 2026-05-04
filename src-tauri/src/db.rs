@@ -93,7 +93,10 @@ impl DbState {
                 let favorite: bool = row.get::<_, i64>(7)? != 0;
 
                 let fields = crypto::decrypt_fields(&encrypted_fields, &key)
-                    .unwrap_or_default();
+                    .unwrap_or_else(|e| {
+                        eprintln!("解密失败 (id: {}): {}", id, e);
+                        Default::default()
+                    });
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
                 Ok(SecretEntry {
@@ -155,7 +158,11 @@ impl DbState {
                 let updated_at: i64 = row.get(6)?;
                 let favorite: bool = row.get::<_, i64>(7)? != 0;
 
-                let fields = crypto::decrypt_fields(&encrypted_fields, &key).unwrap_or_default();
+                let fields = crypto::decrypt_fields(&encrypted_fields, &key)
+                    .unwrap_or_else(|e| {
+                        eprintln!("解密失败 (id: {}): {}", id, e);
+                        Default::default()
+                    });
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
                 Ok(SecretEntry {
@@ -180,11 +187,12 @@ impl DbState {
 
     pub fn update_secret(&self, req: UpdateSecretRequest) -> Result<SecretEntry, String> {
         let key = crypto::get_encryption_key();
+
+        // 先获取现有条目（在获取锁之前）
+        let existing = self.get_secret(&req.id)?;
+
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         let now = chrono::Utc::now().timestamp();
-
-        // 先获取现有条目
-        let existing = self.get_secret(&req.id)?;
 
         let title = req.title.unwrap_or(existing.title);
         let fields = req.fields.unwrap_or(existing.fields);
@@ -269,7 +277,11 @@ impl DbState {
             let updated_at: i64 = row.get(6)?;
             let favorite: bool = row.get::<_, i64>(7)? != 0;
 
-            let fields = crypto::decrypt_fields(&encrypted_fields, &key).unwrap_or_default();
+            let fields = crypto::decrypt_fields(&encrypted_fields, &key)
+                .unwrap_or_else(|e| {
+                    eprintln!("解密失败 (id: {}): {}", id, e);
+                    Default::default()
+                });
             let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
 
             Ok(SecretEntry {

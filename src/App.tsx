@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from './stores/useStore'
 import { ThemeProvider } from './components/ThemeProvider'
 import Sidebar from './components/Sidebar'
@@ -8,10 +8,15 @@ import SecretDetail from './components/SecretDetail'
 import SecretForm from './components/SecretForm'
 
 function AppContent() {
-  const { fetchSecrets, showForm } = useStore()
+  const fetchSecrets = useStore((s) => s.fetchSecrets)
+  const showForm = useStore((s) => s.showForm)
+  const initialized = useRef(false)
 
   useEffect(() => {
-    fetchSecrets()
+    if (!initialized.current) {
+      initialized.current = true
+      fetchSecrets()
+    }
   }, [fetchSecrets])
 
   return (

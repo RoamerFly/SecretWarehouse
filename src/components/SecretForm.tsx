@@ -16,23 +16,34 @@ export default function SecretForm() {
   )
   const [tags, setTags] = useState(editingSecret?.tags.join(', ') || '')
   const [icon, setIcon] = useState(editingSecret?.icon || 'key')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async () => {
-    if (!title.trim()) return
+    if (!title.trim() || isSubmitting) return
 
-    const fieldsObj: Record<string, string> = {}
-    fields.forEach(f => {
-      if (f.key.trim()) {
-        fieldsObj[f.key.trim()] = f.value
+    setError(null)
+    setIsSubmitting(true)
+
+    try {
+      const fieldsObj: Record<string, string> = {}
+      fields.forEach(f => {
+        if (f.key.trim()) {
+          fieldsObj[f.key.trim()] = f.value
+        }
+      })
+
+      const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean)
+
+      if (editingSecret) {
+        await updateSecret({ id: editingSecret.id, title, fields: fieldsObj, tags: tagsArray, icon })
+      } else {
+        await createSecret({ title, fields: fieldsObj, tags: tagsArray, icon })
       }
-    })
-
-    const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean)
-
-    if (editingSecret) {
-      await updateSecret({ id: editingSecret.id, title, fields: fieldsObj, tags: tagsArray, icon })
-    } else {
-      await createSecret({ title, fields: fieldsObj, tags: tagsArray, icon })
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -74,6 +85,13 @@ export default function SecretForm() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1.5">
@@ -183,10 +201,10 @@ export default function SecretForm() {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!title.trim()}
+            disabled={!title.trim() || isSubmitting}
             className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
-            {editingSecret ? '保存' : '创建'}
+            {isSubmitting ? '保存中...' : (editingSecret ? '保存' : '创建')}
           </button>
         </div>
       </div>
