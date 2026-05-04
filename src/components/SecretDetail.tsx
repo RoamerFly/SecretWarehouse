@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useState } from 'react'
 import { useStore } from '../stores/useStore'
 import {
@@ -9,10 +10,20 @@ import { iconMap, iconColors } from '../constants/icons'
 const SENSITIVE_KEYWORDS = ['password', '密码', 'secret', '密钥', 'key', 'token', 'cvv', 'pin']
 
 export default function SecretDetail() {
-  const { selectedSecret, updateSecret, deleteSecret, setEditingSecret } = useStore()
+  const { selectedSecret, secrets, selectSecret, updateSecret, deleteSecret, setEditingSecret } = useStore()
   const [showSensitive, setShowSensitive] = useState<Record<string, boolean>>({})
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // 当 secrets 更新时，同步 selectedSecret
+  useEffect(() => {
+    if (selectedSecret) {
+      const updated = secrets.find(s => s.id === selectedSecret.id)
+      if (updated && updated !== selectedSecret) {
+        selectSecret(updated)
+      }
+    }
+  }, [secrets, selectedSecret, selectSecret])
 
   if (!selectedSecret) {
     return (

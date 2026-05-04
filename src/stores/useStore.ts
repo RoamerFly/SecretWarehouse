@@ -103,9 +103,10 @@ export const useStore = create<AppState>((set, get) => ({
         icon: req.icon || null,
         favorite: req.favorite !== undefined ? req.favorite : null,
       })
+      // 只更新 secrets 列表，不更新 selectedSecret
+      // selectedSecret 会在 SecretDetail 的 effect 中自动同步
       set((state) => ({
         secrets: state.secrets.map((s) => (s.id === secret.id ? secret : s)),
-        selectedSecret: state.selectedSecret?.id === secret.id ? secret : state.selectedSecret,
         isLoading: false,
       }))
       get().fetchAllTags()
