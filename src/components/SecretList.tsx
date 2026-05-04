@@ -1,24 +1,41 @@
 import { useStore } from '../stores/useStore'
-import { Globe, Key, CreditCard, FileText, Terminal, Award, Star, Plus } from 'lucide-react'
-import { SecretType } from '../types'
+import {
+  Key, Globe, CreditCard, FileText, Terminal, Award, Lock, Shield,
+  Mail, Smartphone, Wifi, Server, Star, Plus
+} from 'lucide-react'
 
-const typeIcons: Record<SecretType, React.ComponentType<{ className?: string }>> = {
-  website: Globe,
-  api_key: Key,
-  bank_card: CreditCard,
-  secure_note: FileText,
-  ssh_key: Terminal,
-  license: Award,
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  key: Key,
+  globe: Globe,
+  'credit-card': CreditCard,
+  'file-text': FileText,
+  terminal: Terminal,
+  award: Award,
+  lock: Lock,
+  shield: Shield,
+  mail: Mail,
+  smartphone: Smartphone,
+  wifi: Wifi,
+  server: Server,
 }
 
-const typeColors: Record<SecretType, string> = {
-  website: 'from-green-500 to-emerald-600',
-  api_key: 'from-purple-500 to-violet-600',
-  bank_card: 'from-rose-500 to-pink-600',
-  secure_note: 'from-cyan-500 to-teal-600',
-  ssh_key: 'from-orange-500 to-amber-600',
-  license: 'from-indigo-500 to-blue-600',
+const iconColors: Record<string, string> = {
+  key: 'from-yellow-500 to-amber-600',
+  globe: 'from-blue-500 to-cyan-600',
+  'credit-card': 'from-rose-500 to-pink-600',
+  'file-text': 'from-slate-500 to-gray-600',
+  terminal: 'from-green-500 to-emerald-600',
+  award: 'from-purple-500 to-violet-600',
+  lock: 'from-red-500 to-orange-600',
+  shield: 'from-indigo-500 to-blue-600',
+  mail: 'from-cyan-500 to-teal-600',
+  smartphone: 'from-pink-500 to-rose-600',
+  wifi: 'from-teal-500 to-green-600',
+  server: 'from-slate-600 to-gray-700',
 }
+
+// 敏感字段关键词
+const SENSITIVE_KEYWORDS = ['password', '密码', 'secret', '密钥', 'key', 'token', 'cvv', 'pin']
 
 export default function SecretList() {
   const { secrets, selectedSecret, selectSecret, isLoading, setShowForm } = useStore()
@@ -53,11 +70,11 @@ export default function SecretList() {
         {secrets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-6 text-center">
             <div className="w-16 h-16 rounded-2xl bg-slate-700/50 flex items-center justify-center mb-4">
-              <FileText className="w-8 h-8 text-slate-500" />
+              <Lock className="w-8 h-8 text-slate-500" />
             </div>
             <h3 className="text-lg font-semibold text-slate-300 mb-2">暂无条目</h3>
             <p className="text-sm text-slate-500 mb-6">
-              点击下方按钮创建你的第一个密码条目
+              点击下方按钮创建你的第一个秘密条目
             </p>
             <button
               onClick={() => setShowForm(true)}
@@ -70,9 +87,10 @@ export default function SecretList() {
         ) : (
           <ul className="p-2 space-y-1">
             {secrets.map((secret) => {
-              const Icon = typeIcons[secret.secret_type] || FileText
+              const Icon = iconMap[secret.icon] || Key
               const isSelected = selectedSecret?.id === secret.id
-              const gradientColor = typeColors[secret.secret_type] || 'from-slate-500 to-slate-600'
+              const gradientColor = iconColors[secret.icon] || 'from-yellow-500 to-amber-600'
+              const preview = getPreview(secret.fields)
 
               return (
                 <li key={secret.id}>
@@ -99,15 +117,19 @@ export default function SecretList() {
                           <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-sm text-slate-400 truncate mt-0.5">
-                        {getSubtitle(secret)}
-                      </p>
+                      {preview && (
+                        <p className="text-sm text-slate-400 truncate mt-0.5">
+                          {preview}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Type Badge */}
-                    <span className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded-md flex-shrink-0">
-                      {getTypeLabel(secret.secret_type)}
-                    </span>
+                    {/* Tags indicator */}
+                    {secret.tags.length > 0 && (
+                      <span className="text-xs text-slate-500 bg-slate-800/50 px-2 py-1 rounded-md flex-shrink-0">
+                        #{secret.tags[0]}
+                      </span>
+                    )}
                   </button>
                 </li>
               )
@@ -119,31 +141,12 @@ export default function SecretList() {
   )
 }
 
-function getSubtitle(secret: { secret_type: SecretType; fields: Record<string, string> }): string {
-  switch (secret.secret_type) {
-    case 'website':
-      return secret.fields.username || secret.fields.url || ''
-    case 'api_key':
-      return secret.fields.service || ''
-    case 'bank_card':
-      return secret.fields.bank || ''
-    case 'license':
-      return secret.fields.software || ''
-    case 'ssh_key':
-      return secret.fields.title || ''
-    default:
-      return secret.fields.content?.substring(0, 30) || ''
+function getPreview(fields: Record<string, string>): string {
+  // 找到第一个非敏感字段作为预览
+  for (const [key, value] of Object.entries(fields)) {
+    if (value && !SENSITIVE_KEYWORDS.some(kw => key.toLowerCase().includes(kw))) {
+      return `${key}: ${value.substring(0, 30)}${value.length > 30 ? '...' : ''}`
+    }
   }
-}
-
-function getTypeLabel(type: SecretType): string {
-  const labels: Record<SecretType, string> = {
-    website: '网站',
-    api_key: 'API',
-    bank_card: '银行卡',
-    secure_note: '笔记',
-    ssh_key: 'SSH',
-    license: '许可',
-  }
-  return labels[type] || type
+  return ''
 }

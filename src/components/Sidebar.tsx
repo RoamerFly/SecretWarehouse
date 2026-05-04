@@ -1,32 +1,21 @@
 import { useStore } from '../stores/useStore'
 import {
-  Globe,
-  Key,
-  CreditCard,
-  FileText,
-  Terminal,
-  Award,
   Plus,
   Star,
   Layers,
   Shield,
+  Tag,
 } from 'lucide-react'
 
-const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  website: Globe,
-  api_key: Key,
-  bank_card: CreditCard,
-  secure_note: FileText,
-  ssh_key: Terminal,
-  license: Award,
-}
-
 export default function Sidebar() {
-  const { secretTypes, selectedType, selectType, setShowForm } = useStore()
+  const { allTags, selectedTag, selectTag, setShowForm, secrets } = useStore()
 
-  const handleTypeClick = (typeName: string | null) => {
-    selectType(typeName)
+  const handleTagClick = (tagName: string | null) => {
+    selectTag(tagName)
   }
+
+  // 统计收藏数量
+  const favoriteCount = secrets.filter(s => s.favorite).length
 
   return (
     <aside className="w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col border-r border-slate-700/50">
@@ -41,7 +30,7 @@ export default function Sidebar() {
               SecretWarehouse
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              安全密码管理器
+              自由秘密管理器
             </p>
           </div>
         </div>
@@ -58,45 +47,47 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Categories */}
+      {/* Quick Filters */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         <div className="space-y-1">
           {/* All Items */}
           <button
-            onClick={() => handleTypeClick(null)}
+            onClick={() => handleTagClick(null)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-              selectedType === null
+              selectedTag === null
                 ? 'bg-slate-700/50 text-white shadow-lg'
                 : 'text-slate-400 hover:bg-slate-700/30 hover:text-white'
             }`}
           >
             <div className={`p-2 rounded-lg ${
-              selectedType === null
+              selectedTag === null
                 ? 'bg-blue-500/20 text-blue-400'
                 : 'bg-slate-700/50 text-slate-500'
             }`}>
               <Layers className="w-4 h-4" />
             </div>
-            全部条目
+            <span className="flex-1 text-left">全部条目</span>
+            <span className="text-xs text-slate-500">{secrets.length}</span>
           </button>
 
           {/* Favorites */}
           <button
-            onClick={() => handleTypeClick('favorite')}
+            onClick={() => handleTagClick('favorite')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-              selectedType === 'favorite'
+              selectedTag === 'favorite'
                 ? 'bg-slate-700/50 text-white shadow-lg'
                 : 'text-slate-400 hover:bg-slate-700/30 hover:text-white'
             }`}
           >
             <div className={`p-2 rounded-lg ${
-              selectedType === 'favorite'
+              selectedTag === 'favorite'
                 ? 'bg-yellow-500/20 text-yellow-400'
                 : 'bg-slate-700/50 text-slate-500'
             }`}>
               <Star className="w-4 h-4" />
             </div>
-            收藏夹
+            <span className="flex-1 text-left">收藏夹</span>
+            <span className="text-xs text-slate-500">{favoriteCount}</span>
           </button>
         </div>
 
@@ -105,35 +96,34 @@ export default function Sidebar() {
           <div className="h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent" />
         </div>
 
-        {/* Secret Types */}
+        {/* Tags */}
         <div className="space-y-1">
-          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-            分类
-          </p>
-          {secretTypes.map((type) => {
-            const Icon = typeIcons[type.type_name] || FileText
-            const colorClass = getTypeColor(type.type_name)
-            return (
+          <div className="flex items-center gap-2 px-4 mb-2">
+            <Tag className="w-3.5 h-3.5 text-slate-500" />
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              标签
+            </p>
+          </div>
+          {allTags.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-slate-500 italic">
+              暂无标签
+            </p>
+          ) : (
+            allTags.map((tag) => (
               <button
-                key={type.type_name}
-                onClick={() => handleTypeClick(type.type_name)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  selectedType === type.type_name
+                key={tag}
+                onClick={() => handleTagClick(tag)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  selectedTag === tag
                     ? 'bg-slate-700/50 text-white shadow-lg'
                     : 'text-slate-400 hover:bg-slate-700/30 hover:text-white'
                 }`}
               >
-                <div className={`p-2 rounded-lg ${
-                  selectedType === type.type_name
-                    ? colorClass
-                    : 'bg-slate-700/50 text-slate-500'
-                }`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                {type.label}
+                <span className="text-slate-500">#</span>
+                <span className="flex-1 text-left truncate">{tag}</span>
               </button>
-            )
-          })}
+            ))
+          )}
         </div>
       </nav>
 
@@ -145,16 +135,4 @@ export default function Sidebar() {
       </div>
     </aside>
   )
-}
-
-function getTypeColor(type: string): string {
-  const colors: Record<string, string> = {
-    website: 'bg-green-500/20 text-green-400',
-    api_key: 'bg-purple-500/20 text-purple-400',
-    bank_card: 'bg-rose-500/20 text-rose-400',
-    secure_note: 'bg-cyan-500/20 text-cyan-400',
-    ssh_key: 'bg-orange-500/20 text-orange-400',
-    license: 'bg-indigo-500/20 text-indigo-400',
-  }
-  return colors[type] || 'bg-slate-700/50 text-slate-500'
 }

@@ -7,7 +7,6 @@ mod commands;
 mod crypto;
 mod db;
 mod models;
-mod search;
 
 use db::DbState;
 
@@ -23,8 +22,8 @@ fn main() {
             commands::update_secret,
             commands::delete_secret,
             commands::search_secrets,
+            commands::get_all_tags,
             commands::generate_password,
-            commands::get_secret_types,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

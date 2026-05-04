@@ -6,16 +6,16 @@ use tauri::State;
 #[tauri::command]
 pub fn create_secret(
     state: State<'_, DbState>,
-    secret_type: String,
     title: String,
     fields: std::collections::HashMap<String, String>,
     tags: Option<Vec<String>>,
+    icon: Option<String>,
 ) -> Result<SecretEntry, String> {
     let req = CreateSecretRequest {
-        secret_type,
         title,
         fields,
         tags: tags.unwrap_or_default(),
+        icon: icon.unwrap_or_else(|| "key".to_string()),
     };
     state.create_secret(req)
 }
@@ -28,13 +28,13 @@ pub fn get_secret(state: State<'_, DbState>, id: String) -> Result<SecretEntry, 
 #[tauri::command]
 pub fn list_secrets(
     state: State<'_, DbState>,
-    secret_type: Option<String>,
+    tag: Option<String>,
     favorite: Option<bool>,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<Vec<SecretEntry>, String> {
     let req = ListSecretsRequest {
-        secret_type,
+        tag,
         favorite,
         limit,
         offset,
@@ -49,6 +49,7 @@ pub fn update_secret(
     title: Option<String>,
     fields: Option<std::collections::HashMap<String, String>>,
     tags: Option<Vec<String>>,
+    icon: Option<String>,
     favorite: Option<bool>,
 ) -> Result<SecretEntry, String> {
     let req = UpdateSecretRequest {
@@ -56,6 +57,7 @@ pub fn update_secret(
         title,
         fields,
         tags,
+        icon,
         favorite,
     };
     state.update_secret(req)
@@ -69,6 +71,11 @@ pub fn delete_secret(state: State<'_, DbState>, id: String) -> Result<bool, Stri
 #[tauri::command]
 pub fn search_secrets(state: State<'_, DbState>, query: String) -> Result<Vec<SecretEntry>, String> {
     state.search_secrets(&query)
+}
+
+#[tauri::command]
+pub fn get_all_tags(state: State<'_, DbState>) -> Result<Vec<String>, String> {
+    state.get_all_tags()
 }
 
 #[tauri::command]
@@ -102,37 +109,4 @@ pub fn generate_password(
         .collect();
 
     Ok(password)
-}
-
-#[tauri::command]
-pub fn get_secret_types() -> Vec<TypeInfo> {
-    let types = [
-        ("website", "网站账号"),
-        ("api_key", "API Key"),
-        ("bank_card", "银行卡"),
-        ("secure_note", "安全笔记"),
-        ("ssh_key", "SSH 密钥"),
-        ("license", "软件许可证"),
-    ];
-
-    types
-        .iter()
-        .map(|(type_name, label)| {
-            let st = crate::models::SecretType::from_str(type_name).unwrap();
-            let fields = st
-                .required_fields()
-                .into_iter()
-                .map(|(key, lbl)| FieldInfo {
-                    key: key.to_string(),
-                    label: lbl.to_string(),
-                })
-                .collect();
-
-            TypeInfo {
-                type_name: type_name.to_string(),
-                label: label.to_string(),
-                fields,
-            }
-        })
-        .collect()
 }

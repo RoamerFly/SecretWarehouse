@@ -7,12 +7,11 @@ import SecretDetail from './components/SecretDetail'
 import SecretForm from './components/SecretForm'
 
 function App() {
-  const { fetchSecrets, fetchSecretTypes, showForm } = useStore()
+  const { fetchSecrets, showForm } = useStore()
 
   useEffect(() => {
     fetchSecrets()
-    fetchSecretTypes()
-  }, [fetchSecrets, fetchSecretTypes])
+  }, [fetchSecrets])
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">

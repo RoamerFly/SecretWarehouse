@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/tauri'
-import { SecretEntry, TypeInfo, CreateSecretRequest, UpdateSecretRequest } from '../types'
+import { SecretEntry, CreateSecretRequest, UpdateSecretRequest } from '../types'
 
 interface AppState {
   // State
   secrets: SecretEntry[]
   selectedSecret: SecretEntry | null
-  secretTypes: TypeInfo[]
-  selectedType: string | null
+  allTags: string[]  // 所有标签
+  selectedTag: string | null  // 选中的标签筛选
   searchQuery: string
   isLoading: boolean
   error: string | null
@@ -15,14 +15,14 @@ interface AppState {
   editingSecret: SecretEntry | null
 
   // Actions
-  fetchSecrets: (secretType?: string) => Promise<void>
-  fetchSecretTypes: () => Promise<void>
+  fetchSecrets: (tag?: string) => Promise<void>
+  fetchAllTags: () => Promise<void>
   createSecret: (req: CreateSecretRequest) => Promise<void>
   updateSecret: (req: UpdateSecretRequest) => Promise<void>
   deleteSecret: (id: string) => Promise<void>
   searchSecrets: (query: string) => Promise<void>
   selectSecret: (secret: SecretEntry | null) => void
-  selectType: (type: string | null) => void
+  selectTag: (tag: string | null) => void
   setSearchQuery: (query: string) => void
   setShowForm: (show: boolean) => void
   setEditingSecret: (secret: SecretEntry | null) => void
@@ -32,35 +32,37 @@ interface AppState {
 export const useStore = create<AppState>((set, get) => ({
   secrets: [],
   selectedSecret: null,
-  secretTypes: [],
-  selectedType: null,
+  allTags: [],
+  selectedTag: null,
   searchQuery: '',
   isLoading: false,
   error: null,
   showForm: false,
   editingSecret: null,
 
-  fetchSecrets: async (secretType?: string) => {
+  fetchSecrets: async (tag?: string) => {
     set({ isLoading: true, error: null })
     try {
       const secrets = await invoke<SecretEntry[]>('list_secrets', {
-        secretType: secretType || null,
+        tag: tag || null,
         favorite: null,
         limit: null,
         offset: null,
       })
       set({ secrets, isLoading: false })
+      // 更新所有标签
+      get().fetchAllTags()
     } catch (err) {
       set({ error: String(err), isLoading: false })
     }
   },
 
-  fetchSecretTypes: async () => {
+  fetchAllTags: async () => {
     try {
-      const types = await invoke<TypeInfo[]>('get_secret_types')
-      set({ secretTypes: types })
+      const tags = await invoke<string[]>('get_all_tags')
+      set({ allTags: tags })
     } catch (err) {
-      set({ error: String(err) })
+      console.error('Failed to fetch tags:', err)
     }
   },
 
@@ -68,10 +70,10 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const secret = await invoke<SecretEntry>('create_secret', {
-        secretType: req.secret_type,
         title: req.title,
         fields: req.fields,
         tags: req.tags || [],
+        icon: req.icon || 'key',
       })
       set((state) => ({
         secrets: [secret, ...state.secrets],
@@ -79,6 +81,7 @@ export const useStore = create<AppState>((set, get) => ({
         showForm: false,
         editingSecret: null,
       }))
+      get().fetchAllTags()
     } catch (err) {
       set({ error: String(err), isLoading: false })
     }
@@ -92,6 +95,7 @@ export const useStore = create<AppState>((set, get) => ({
         title: req.title || null,
         fields: req.fields || null,
         tags: req.tags || null,
+        icon: req.icon || null,
         favorite: req.favorite !== undefined ? req.favorite : null,
       })
       set((state) => ({
@@ -101,6 +105,7 @@ export const useStore = create<AppState>((set, get) => ({
         showForm: false,
         editingSecret: null,
       }))
+      get().fetchAllTags()
     } catch (err) {
       set({ error: String(err), isLoading: false })
     }
@@ -115,6 +120,7 @@ export const useStore = create<AppState>((set, get) => ({
         selectedSecret: state.selectedSecret?.id === id ? null : state.selectedSecret,
         isLoading: false,
       }))
+      get().fetchAllTags()
     } catch (err) {
       set({ error: String(err), isLoading: false })
     }
@@ -122,7 +128,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   searchSecrets: async (query: string) => {
     if (!query.trim()) {
-      get().fetchSecrets(get().selectedType || undefined)
+      get().fetchSecrets(get().selectedTag || undefined)
       return
     }
     set({ isLoading: true, error: null, searchQuery: query })
@@ -136,9 +142,9 @@ export const useStore = create<AppState>((set, get) => ({
 
   selectSecret: (secret) => set({ selectedSecret: secret }),
 
-  selectType: (type) => {
-    set({ selectedType: type })
-    get().fetchSecrets(type || undefined)
+  selectTag: (tag) => {
+    set({ selectedTag: tag })
+    get().fetchSecrets(tag || undefined)
   },
 
   setSearchQuery: (query) => set({ searchQuery: query }),

@@ -15,7 +15,7 @@ impl DbState {
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS secrets (
                 id TEXT PRIMARY KEY,
-                secret_type TEXT NOT NULL,
+                icon TEXT NOT NULL DEFAULT 'key',
                 title TEXT NOT NULL,
                 encrypted_fields TEXT NOT NULL,
                 tags TEXT DEFAULT '[]',
@@ -50,9 +50,6 @@ impl DbState {
     }
 
     pub fn create_secret(&self, req: CreateSecretRequest) -> Result<SecretEntry, String> {
-        let secret_type = SecretType::from_str(&req.secret_type)
-            .ok_or_else(|| format!("未知的类型: {}", req.secret_type))?;
-
         let key = crypto::get_encryption_key();
         let encrypted_fields = crypto::encrypt_fields(&req.fields, &key)?;
         let now = chrono::Utc::now().timestamp();
@@ -61,14 +58,14 @@ impl DbState {
 
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
         conn.execute(
-            "INSERT INTO secrets (id, secret_type, title, encrypted_fields, tags, created_at, updated_at, favorite)
+            "INSERT INTO secrets (id, icon, title, encrypted_fields, tags, created_at, updated_at, favorite)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0)",
-            params![id, req.secret_type, req.title, encrypted_fields, tags_json, now, now],
+            params![id, req.icon, req.title, encrypted_fields, tags_json, now, now],
         ).map_err(|e| format!("插入失败: {}", e))?;
 
         Ok(SecretEntry {
             id,
-            secret_type,
+            icon: req.icon,
             title: req.title,
             fields: req.fields,
             tags: req.tags,
@@ -83,11 +80,11 @@ impl DbState {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
 
         conn.query_row(
-            "SELECT id, secret_type, title, encrypted_fields, tags, created_at, updated_at, favorite FROM secrets WHERE id = ?1",
+            "SELECT id, icon, title, encrypted_fields, tags, created_at, updated_at, favorite FROM secrets WHERE id = ?1",
             params![id],
             |row| {
                 let id: String = row.get(0)?;
-                let type_str: String = row.get(1)?;
+                let icon: String = row.get(1)?;
                 let title: String = row.get(2)?;
                 let encrypted_fields: String = row.get(3)?;
                 let tags_json: String = row.get(4)?;
@@ -98,11 +95,10 @@ impl DbState {
                 let fields = crypto::decrypt_fields(&encrypted_fields, &key)
                     .unwrap_or_default();
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-                let secret_type = SecretType::from_str(&type_str).unwrap_or(SecretType::SecureNote);
 
                 Ok(SecretEntry {
                     id,
-                    secret_type,
+                    icon,
                     title,
                     fields,
                     tags,
@@ -119,13 +115,14 @@ impl DbState {
         let conn = self.conn.lock().map_err(|e| e.to_string())?;
 
         let mut query = String::from(
-            "SELECT id, secret_type, title, encrypted_fields, tags, created_at, updated_at, favorite FROM secrets WHERE 1=1",
+            "SELECT id, icon, title, encrypted_fields, tags, created_at, updated_at, favorite FROM secrets WHERE 1=1",
         );
         let mut params_vec: Vec<String> = Vec::new();
 
-        if let Some(ref st) = req.secret_type {
-            query.push_str(" AND secret_type = ?");
-            params_vec.push(st.clone());
+        // 按标签筛选 - 使用 JSON LIKE 查询
+        if let Some(ref tag) = req.tag {
+            query.push_str(" AND tags LIKE ?");
+            params_vec.push(format!("%\"{}\"%", tag));
         }
         if let Some(fav) = req.favorite {
             query.push_str(" AND favorite = ?");
@@ -150,7 +147,7 @@ impl DbState {
         let rows = stmt
             .query_map(params_ref.as_slice(), |row| {
                 let id: String = row.get(0)?;
-                let type_str: String = row.get(1)?;
+                let icon: String = row.get(1)?;
                 let title: String = row.get(2)?;
                 let encrypted_fields: String = row.get(3)?;
                 let tags_json: String = row.get(4)?;
@@ -160,11 +157,10 @@ impl DbState {
 
                 let fields = crypto::decrypt_fields(&encrypted_fields, &key).unwrap_or_default();
                 let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-                let secret_type = SecretType::from_str(&type_str).unwrap_or(SecretType::SecureNote);
 
                 Ok(SecretEntry {
                     id,
-                    secret_type,
+                    icon,
                     title,
                     fields,
                     tags,
@@ -193,19 +189,20 @@ impl DbState {
         let title = req.title.unwrap_or(existing.title);
         let fields = req.fields.unwrap_or(existing.fields);
         let tags = req.tags.unwrap_or(existing.tags);
+        let icon = req.icon.unwrap_or(existing.icon);
         let favorite = req.favorite.unwrap_or(existing.favorite);
 
         let encrypted_fields = crypto::encrypt_fields(&fields, &key)?;
         let tags_json = serde_json::to_string(&tags).unwrap_or_default();
 
         conn.execute(
-            "UPDATE secrets SET title = ?1, encrypted_fields = ?2, tags = ?3, updated_at = ?4, favorite = ?5 WHERE id = ?6",
-            params![title, encrypted_fields, tags_json, now, if favorite { 1 } else { 0 }, req.id],
+            "UPDATE secrets SET title = ?1, encrypted_fields = ?2, tags = ?3, icon = ?4, updated_at = ?5, favorite = ?6 WHERE id = ?7",
+            params![title, encrypted_fields, tags_json, icon, now, if favorite { 1 } else { 0 }, req.id],
         ).map_err(|e| format!("更新失败: {}", e))?;
 
         Ok(SecretEntry {
             id: req.id,
-            secret_type: existing.secret_type,
+            icon,
             title,
             fields,
             tags,
@@ -221,5 +218,75 @@ impl DbState {
             .execute("DELETE FROM secrets WHERE id = ?1", params![id])
             .map_err(|e| format!("删除失败: {}", e))?;
         Ok(affected > 0)
+    }
+
+    pub fn get_all_tags(&self) -> Result<Vec<String>, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+
+        let mut stmt = conn.prepare("SELECT tags FROM secrets")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |row| {
+            let tags_json: String = row.get(0)?;
+            Ok(tags_json)
+        }).map_err(|e| e.to_string())?;
+
+        let mut all_tags: Vec<String> = Vec::new();
+        for row in rows {
+            let tags_json = row.map_err(|e| e.to_string())?;
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+            for tag in tags {
+                if !all_tags.contains(&tag) {
+                    all_tags.push(tag);
+                }
+            }
+        }
+
+        all_tags.sort();
+        Ok(all_tags)
+    }
+
+    pub fn search_secrets(&self, query: &str) -> Result<Vec<SecretEntry>, String> {
+        let key = crypto::get_encryption_key();
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+
+        let sql = "
+            SELECT s.id, s.icon, s.title, s.encrypted_fields, s.tags, s.created_at, s.updated_at, s.favorite
+            FROM secrets s
+            INNER JOIN secrets_fts fts ON s.rowid = fts.rowid
+            WHERE secrets_fts MATCH ?
+            ORDER BY rank
+        ";
+
+        let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+        let rows = stmt.query_map(params![query], |row| {
+            let id: String = row.get(0)?;
+            let icon: String = row.get(1)?;
+            let title: String = row.get(2)?;
+            let encrypted_fields: String = row.get(3)?;
+            let tags_json: String = row.get(4)?;
+            let created_at: i64 = row.get(5)?;
+            let updated_at: i64 = row.get(6)?;
+            let favorite: bool = row.get::<_, i64>(7)? != 0;
+
+            let fields = crypto::decrypt_fields(&encrypted_fields, &key).unwrap_or_default();
+            let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
+
+            Ok(SecretEntry {
+                id,
+                icon,
+                title,
+                fields,
+                tags,
+                created_at,
+                updated_at,
+                favorite,
+            })
+        }).map_err(|e| e.to_string())?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row.map_err(|e| e.to_string())?);
+        }
+        Ok(results)
     }
 }

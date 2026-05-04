@@ -3,7 +3,7 @@ import { useStore } from '../stores/useStore'
 import { Search, X, Command } from 'lucide-react'
 
 export default function SearchBar() {
-  const { searchQuery, searchSecrets, setSearchQuery, fetchSecrets, selectedType } = useStore()
+  const { searchQuery, searchSecrets, setSearchQuery, fetchSecrets, selectedTag } = useStore()
   const [localQuery, setLocalQuery] = useState(searchQuery)
   const [isFocused, setIsFocused] = useState(false)
 
@@ -11,15 +11,15 @@ export default function SearchBar() {
     if (localQuery.trim()) {
       searchSecrets(localQuery)
     } else {
-      fetchSecrets(selectedType || undefined)
+      fetchSecrets(selectedTag || undefined)
     }
-  }, [localQuery, searchSecrets, fetchSecrets, selectedType])
+  }, [localQuery, searchSecrets, fetchSecrets, selectedTag])
 
   const handleClear = useCallback(() => {
     setLocalQuery('')
     setSearchQuery('')
-    fetchSecrets(selectedType || undefined)
-  }, [setSearchQuery, fetchSecrets, selectedType])
+    fetchSecrets(selectedTag || undefined)
+  }, [setSearchQuery, fetchSecrets, selectedTag])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

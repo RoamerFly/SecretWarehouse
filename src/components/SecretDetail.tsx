@@ -1,77 +1,43 @@
 import { useState } from 'react'
 import { useStore } from '../stores/useStore'
 import {
-  Globe,
-  Key,
-  CreditCard,
-  FileText,
-  Terminal,
-  Award,
-  Star,
-  Eye,
-  EyeOff,
-  Copy,
-  Edit,
-  Trash2,
-  Clock,
-  CheckCircle2,
+  Key, Globe, CreditCard, FileText, Terminal, Award, Lock, Shield,
+  Mail, Smartphone, Wifi, Server, Star, Eye, EyeOff, Copy, Edit,
+  Trash2, Clock, CheckCircle2,
 } from 'lucide-react'
-import { SecretType } from '../types'
 
-const typeIcons: Record<SecretType, React.ComponentType<{ className?: string }>> = {
-  website: Globe,
-  api_key: Key,
-  bank_card: CreditCard,
-  secure_note: FileText,
-  ssh_key: Terminal,
-  license: Award,
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  key: Key,
+  globe: Globe,
+  'credit-card': CreditCard,
+  'file-text': FileText,
+  terminal: Terminal,
+  award: Award,
+  lock: Lock,
+  shield: Shield,
+  mail: Mail,
+  smartphone: Smartphone,
+  wifi: Wifi,
+  server: Server,
 }
 
-const typeColors: Record<SecretType, string> = {
-  website: 'from-green-500 to-emerald-600',
-  api_key: 'from-purple-500 to-violet-600',
-  bank_card: 'from-rose-500 to-pink-600',
-  secure_note: 'from-cyan-500 to-teal-600',
-  ssh_key: 'from-orange-500 to-amber-600',
-  license: 'from-indigo-500 to-blue-600',
+const iconColors: Record<string, string> = {
+  key: 'from-yellow-500 to-amber-600',
+  globe: 'from-blue-500 to-cyan-600',
+  'credit-card': 'from-rose-500 to-pink-600',
+  'file-text': 'from-slate-500 to-gray-600',
+  terminal: 'from-green-500 to-emerald-600',
+  award: 'from-purple-500 to-violet-600',
+  lock: 'from-red-500 to-orange-600',
+  shield: 'from-indigo-500 to-blue-600',
+  mail: 'from-cyan-500 to-teal-600',
+  smartphone: 'from-pink-500 to-rose-600',
+  wifi: 'from-teal-500 to-green-600',
+  server: 'from-slate-600 to-gray-700',
 }
 
-const fieldLabels: Record<string, Record<string, string>> = {
-  website: {
-    url: '网址',
-    username: '用户名',
-    password: '密码',
-  },
-  api_key: {
-    service: '服务名称',
-    key: 'API Key',
-    note: '备注',
-  },
-  bank_card: {
-    bank: '银行名称',
-    card_number: '卡号',
-    holder: '持卡人',
-    expiry: '有效期',
-    cvv: 'CVV',
-  },
-  secure_note: {
-    content: '内容',
-  },
-  ssh_key: {
-    title: '标题',
-    private_key: '私钥',
-    public_key: '公钥',
-    note: '备注',
-  },
-  license: {
-    software: '软件名称',
-    license_key: '许可证密钥',
-    email: '邮箱',
-    note: '备注',
-  },
-}
-
-const sensitiveFields = ['password', 'key', 'private_key', 'cvv', 'card_number', 'license_key']
+// 敏感字段关键词
+const SENSITIVE_KEYWORDS = ['password', '密码', 'secret', '密钥', 'key', 'token', 'cvv', 'pin']
 
 export default function SecretDetail() {
   const { selectedSecret, updateSecret, deleteSecret, setEditingSecret } = useStore()
@@ -84,7 +50,7 @@ export default function SecretDetail() {
       <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="text-center">
           <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center">
-            <FileText className="w-10 h-10 text-slate-600" />
+            <Lock className="w-10 h-10 text-slate-600" />
           </div>
           <h3 className="text-xl font-semibold text-slate-400 mb-2">选择一个条目</h3>
           <p className="text-sm text-slate-500">从左侧列表选择条目查看详情</p>
@@ -93,12 +59,15 @@ export default function SecretDetail() {
     )
   }
 
-  const Icon = typeIcons[selectedSecret.secret_type] || FileText
-  const labels = fieldLabels[selectedSecret.secret_type] || {}
-  const gradientColor = typeColors[selectedSecret.secret_type] || 'from-slate-500 to-slate-600'
+  const Icon = iconMap[selectedSecret.icon] || Key
+  const gradientColor = iconColors[selectedSecret.icon] || 'from-yellow-500 to-amber-600'
 
   const toggleSensitive = (field: string) => {
     setShowSensitive((prev) => ({ ...prev, [field]: !prev[field] }))
+  }
+
+  const isFieldSensitive = (key: string) => {
+    return SENSITIVE_KEYWORDS.some(kw => key.toLowerCase().includes(kw))
   }
 
   const copyToClipboard = async (value: string, field: string) => {
@@ -148,7 +117,7 @@ export default function SecretDetail() {
                   {selectedSecret.title}
                 </h1>
                 <p className="text-sm text-slate-400 mt-1">
-                  {getSecretTypeLabel(selectedSecret.secret_type)}
+                  {Object.keys(selectedSecret.fields).length} 个字段
                 </p>
               </div>
             </div>
@@ -201,18 +170,17 @@ export default function SecretDetail() {
         {/* Fields Card */}
         <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 mb-4 backdrop-blur-sm">
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-            详细信息
+            字段内容
           </h2>
           <div className="space-y-4">
             {Object.entries(selectedSecret.fields).map(([key, value]) => {
-              const isSensitive = sensitiveFields.includes(key)
+              const isSensitive = isFieldSensitive(key)
               const isVisible = showSensitive[key]
-              const label = labels[key] || key
 
               return (
                 <div key={key} className="group">
                   <label className="block text-sm font-medium text-slate-400 mb-2">
-                    {label}
+                    {key}
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
@@ -324,16 +292,4 @@ export default function SecretDetail() {
       </div>
     </div>
   )
-}
-
-function getSecretTypeLabel(type: SecretType): string {
-  const labels: Record<SecretType, string> = {
-    website: '网站账号',
-    api_key: 'API Key',
-    bank_card: '银行卡',
-    secure_note: '安全笔记',
-    ssh_key: 'SSH 密钥',
-    license: '软件许可证',
-  }
-  return labels[type] || type
 }
