@@ -144,11 +144,20 @@ nvm use 18
 
 #### 2. Rust 工具链
 
+**Linux/macOS：**
 ```bash
-# 安装 rustup (所有平台)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-# 检查安装
+**Windows：**
+下载 [rustup-init.exe](https://rustup.rs/) 安装，然后执行：
+```powershell
+rustup toolchain install stable-x86_64-pc-windows-msvc
+rustup default stable-x86_64-pc-windows-msvc
+```
+
+验证安装：
+```bash
 rustc --version
 cargo --version
 ```
