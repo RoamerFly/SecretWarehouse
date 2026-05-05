@@ -12,9 +12,11 @@ src-tauri/target/
 
 # Database
 *.db
+
+# Encryption keys and sensitive data
 data/
-.salt
-.key_hash
+*.key
+*.verify
 
 # IDE
 .vscode/

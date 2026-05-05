@@ -9,23 +9,24 @@ use rand::RngCore;
 use sha2::{Sha256, Digest};
 use std::sync::Mutex;
 
-/// 全局加密密钥（运行时由主密码派生）
-static ENCRYPTION_KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
+/// 全局加密密钥（运行时从密钥文件解密得到）
+static MASTER_KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
 
-/// 盐值文件路径
-const SALT_FILE: &str = "data/.salt";
-/// 密钥哈希验证文件路径
-const KEY_HASH_FILE: &str = "data/.key_hash";
+/// 文件路径
+const SALT_FILE: &str = "data/salt.key";
+const MASTER_KEY_FILE: &str = "data/master.key";
+const AUTH_VERIFY_FILE: &str = "data/auth.verify";
 
 /// 检查是否已设置主密码
 pub fn is_master_password_set() -> bool {
-    std::path::Path::new(KEY_HASH_FILE).exists()
+    std::path::Path::new(MASTER_KEY_FILE).exists()
+        && std::path::Path::new(SALT_FILE).exists()
+        && std::path::Path::new(AUTH_VERIFY_FILE).exists()
 }
 
-/// 从主密码派生加密密钥（使用 PBKDF2-SHA256）
+/// 从密码派生密钥（用于加密Master Key）
 fn derive_key_from_password(password: &str, salt: &[u8]) -> [u8; 32] {
     let mut key = [0u8; 32];
-    // PBKDF2 with 100,000 iterations
     pbkdf2::pbkdf2::<Hmac<Sha256>>(password.as_bytes(), salt, 100_000, &mut key)
         .expect("PBKDF2 derivation failed");
     key
@@ -38,48 +39,36 @@ fn generate_salt() -> [u8; 32] {
     salt
 }
 
-/// 保存盐值到文件
-fn save_salt(salt: &[u8]) -> Result<(), String> {
-    std::fs::create_dir_all("data")
-        .map_err(|e| format!("创建data目录失败: {}", e))?;
-    std::fs::write(SALT_FILE, BASE64.encode(salt))
-        .map_err(|e| format!("保存盐值失败: {}", e))
+/// 生成随机Master Key
+fn generate_master_key() -> [u8; 32] {
+    let mut key = [0u8; 32];
+    OsRng.fill_bytes(&mut key);
+    key
 }
 
-/// 从文件读取盐值
-fn load_salt() -> Result<[u8; 32], String> {
-    let encoded = std::fs::read_to_string(SALT_FILE)
-        .map_err(|e| format!("读取盐值失败: {}", e))?;
-    let salt_bytes = BASE64.decode(encoded.trim())
-        .map_err(|e| format!("解码盐值失败: {}", e))?;
-    if salt_bytes.len() != 32 {
-        return Err("盐值长度错误".to_string());
+/// 保存文件
+fn save_file(path: &str, data: &[u8]) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建目录失败: {}", e))?;
     }
-    let mut salt = [0u8; 32];
-    salt.copy_from_slice(&salt_bytes);
-    Ok(salt)
+    std::fs::write(path, data)
+        .map_err(|e| format!("保存文件失败: {}", e))
 }
 
-/// 保存密钥哈希（用于验证密码）
-fn save_key_hash(key: &[u8; 32]) -> Result<(), String> {
-    let mut hasher = Sha256::new();
-    hasher.update(key);
-    let hash = hasher.finalize();
-    std::fs::write(KEY_HASH_FILE, BASE64.encode(hash))
-        .map_err(|e| format!("保存密钥哈希失败: {}", e))
-}
-
-/// 验证密钥是否正确
-fn verify_key(key: &[u8; 32]) -> Result<bool, String> {
-    let stored_hash = std::fs::read_to_string(KEY_HASH_FILE)
-        .map_err(|e| format!("读取密钥哈希失败: {}", e))?;
-    let mut hasher = Sha256::new();
-    hasher.update(key);
-    let hash = hasher.finalize();
-    Ok(BASE64.encode(hash) == stored_hash.trim())
+/// 读取文件
+fn load_file(path: &str) -> Result<Vec<u8>, String> {
+    std::fs::read(path)
+        .map_err(|e| format!("读取文件失败: {}", e))
 }
 
 /// 设置主密码（首次使用）
+/// 1. 生成随机盐值
+/// 2. 生成随机Master Key
+/// 3. 从密码派生加密密钥
+/// 4. 用派生密钥加密Master Key，保存到master.key
+/// 5. 保存盐值到salt.key
+/// 6. 保存验证信息到auth.verify
 pub fn set_master_password(password: &str) -> Result<(), String> {
     if password.len() < 8 {
         return Err("密码长度至少8位".to_string());
@@ -88,43 +77,88 @@ pub fn set_master_password(password: &str) -> Result<(), String> {
         return Err("主密码已设置".to_string());
     }
 
+    // 1. 生成随机盐值
     let salt = generate_salt();
-    save_salt(&salt)?;
 
-    let key = derive_key_from_password(password, &salt);
-    save_key_hash(&key)?;
+    // 2. 生成随机Master Key
+    let master_key = generate_master_key();
 
-    // 设置全局密钥
-    let mut global_key = ENCRYPTION_KEY.lock().map_err(|e| e.to_string())?;
-    *global_key = Some(key);
+    // 3. 从密码派生加密密钥
+    let derived_key = derive_key_from_password(password, &salt);
+
+    // 4. 用派生密钥加密Master Key
+    let encrypted_master_key = encrypt_value(&BASE64.encode(master_key), &derived_key)?;
+
+    // 5. 保存盐值
+    save_file(SALT_FILE, &salt)?;
+
+    // 6. 保存加密的Master Key
+    save_file(MASTER_KEY_FILE, encrypted_master_key.as_bytes())?;
+
+    // 7. 保存验证信息（用于验证密码是否正确）
+    let verify_data = "SecretWarehouse_MasterKey_Verify";
+    let encrypted_verify = encrypt_value(verify_data, &derived_key)?;
+    save_file(AUTH_VERIFY_FILE, encrypted_verify.as_bytes())?;
+
+    // 8. 设置全局Master Key
+    let mut global_key = MASTER_KEY.lock().map_err(|e| e.to_string())?;
+    *global_key = Some(master_key);
 
     Ok(())
 }
 
 /// 验证主密码
+/// 1. 读取盐值
+/// 2. 从密码派生密钥
+/// 3. 尝试解密auth.verify验证密码是否正确
+/// 4. 如果正确，解密master.key并设置到全局变量
 pub fn verify_master_password(password: &str) -> Result<bool, String> {
-    let salt = load_salt()?;
-    let key = derive_key_from_password(password, &salt);
+    // 1. 读取盐值
+    let salt = load_file(SALT_FILE)?;
 
-    if verify_key(&key)? {
-        // 设置全局密钥
-        let mut global_key = ENCRYPTION_KEY.lock().map_err(|e| e.to_string())?;
-        *global_key = Some(key);
-        Ok(true)
-    } else {
-        Ok(false)
+    // 2. 从密码派生密钥
+    let derived_key = derive_key_from_password(password, &salt);
+
+    // 3. 尝试解密验证文件
+    let encrypted_verify = String::from_utf8(load_file(AUTH_VERIFY_FILE)?)
+        .map_err(|e| format!("读取验证文件失败: {}", e))?;
+
+    match decrypt_value(&encrypted_verify, &derived_key) {
+        Ok(verify_data) if verify_data == "SecretWarehouse_MasterKey_Verify" => {
+            // 4. 密码正确，解密Master Key
+            let encrypted_master_key = String::from_utf8(load_file(MASTER_KEY_FILE)?)
+                .map_err(|e| format!("读取密钥文件失败: {}", e))?;
+
+            let master_key_base64 = decrypt_value(&encrypted_master_key, &derived_key)?;
+            let master_key_bytes = BASE64.decode(&master_key_base64)
+                .map_err(|e| format!("解码Master Key失败: {}", e))?;
+
+            if master_key_bytes.len() != 32 {
+                return Err("Master Key长度错误".to_string());
+            }
+
+            let mut master_key = [0u8; 32];
+            master_key.copy_from_slice(&master_key_bytes);
+
+            // 设置全局Master Key
+            let mut global_key = MASTER_KEY.lock().map_err(|e| e.to_string())?;
+            *global_key = Some(master_key);
+
+            Ok(true)
+        }
+        _ => Ok(false),
     }
 }
 
-/// 获取当前加密密钥
+/// 获取当前Master Key
 pub fn get_encryption_key() -> [u8; 32] {
-    let global_key = ENCRYPTION_KEY.lock().expect("获取密钥锁失败");
-    global_key.expect("加密密钥未初始化，请先验证主密码")
+    let global_key = MASTER_KEY.lock().expect("获取密钥锁失败");
+    global_key.expect("Master Key未初始化，请先验证主密码")
 }
 
 /// 清除内存中的密钥（退出时调用）
 pub fn clear_encryption_key() {
-    let mut global_key = ENCRYPTION_KEY.lock().expect("获取密钥锁失败");
+    let mut global_key = MASTER_KEY.lock().expect("获取密钥锁失败");
     *global_key = None;
 }
 
@@ -189,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt() {
-        let key = get_encryption_key();
+        let key = [0u8; 32]; // 测试用密钥
         let plaintext = "hello world";
         let encrypted = encrypt_value(plaintext, &key).unwrap();
         let decrypted = decrypt_value(&encrypted, &key).unwrap();
@@ -198,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_fields() {
-        let key = get_encryption_key();
+        let key = [0u8; 32]; // 测试用密钥
         let mut fields = IndexMap::new();
         fields.insert("password".to_string(), "super_secret_123".to_string());
         fields.insert("username".to_string(), "admin".to_string());
