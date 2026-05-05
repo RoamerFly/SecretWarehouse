@@ -495,7 +495,7 @@ export default function Settings() {
                 label="间距"
                 value={settings.spacing}
                 min={4}
-                max={28}
+                max={84}
                 unit="px"
                 icon={<Space className="w-4 h-4 text-slate-400" />}
                 onChange={(value) => handleUpdateSettings({ spacing: value })}
