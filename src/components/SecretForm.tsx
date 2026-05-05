@@ -120,10 +120,11 @@ export default function SecretForm() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
-  const handleMouseDown = (e: React.MouseEvent, index: number) => {
+  const handleDragStart = (e: React.MouseEvent, index: number) => {
     // 只响应左键
     if (e.button !== 0) return
     e.preventDefault()
+    e.stopPropagation()
     setDraggedIndex(index)
   }
 
@@ -288,16 +289,18 @@ export default function SecretForm() {
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  onMouseDown={(e) => handleMouseDown(e, index)}
                   onMouseEnter={() => handleMouseEnter(index)}
                   className={`flex gap-2 animate-in slide-in-from-left-2 duration-200 select-none ${
                     draggedIndex === index ? 'opacity-50 scale-95' : ''
                   } ${hoveredIndex === index && draggedIndex !== null && draggedIndex !== index ? 'bg-violet-50 dark:bg-violet-900/20' : ''}`}
                 >
                   {/* Drag handle */}
-                  <div className={`flex items-center cursor-grab active:cursor-grabbing px-1 transition-colors ${
-                    draggedIndex === index ? 'text-violet-500' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                  }`}>
+                  <div
+                    onMouseDown={(e) => handleDragStart(e, index)}
+                    className={`flex items-center cursor-grab active:cursor-grabbing px-1 transition-colors ${
+                      draggedIndex === index ? 'text-violet-500' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    }`}
+                  >
                     <GripVertical className="w-4 h-4" />
                   </div>
                   <input
