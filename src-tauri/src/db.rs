@@ -22,7 +22,7 @@ impl DbState {
         let db_path = crypto::get_db_path(username);
 
         // 确保用户数据目录存在
-        if let Some(parent) = std::path::Path::new(&db_path).parent() {
+        if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("创建用户数据目录失败: {}", e))?;
         }

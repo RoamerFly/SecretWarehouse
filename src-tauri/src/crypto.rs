@@ -6,7 +6,8 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use hmac::Hmac;
 use indexmap::IndexMap;
 use rand::RngCore;
-use sha2::{Sha256, Digest};
+use sha2::Sha256;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// 当前登录的用户名
@@ -16,13 +17,13 @@ static CURRENT_USERNAME: Mutex<Option<String>> = Mutex::new(None);
 static MASTER_KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
 
 /// 获取用户数据目录
-fn get_user_data_dir(username: &str) -> String {
-    format!("data/{}", username)
+fn get_user_data_dir(username: &str) -> PathBuf {
+    Path::new("data").join(username)
 }
 
 /// 获取用户文件路径
-fn get_user_file_path(username: &str, filename: &str) -> String {
-    format!("{}/{}", get_user_data_dir(username), filename)
+fn get_user_file_path(username: &str, filename: &str) -> PathBuf {
+    get_user_data_dir(username).join(filename)
 }
 
 /// 文件路径常量（相对于用户目录）
@@ -34,10 +35,9 @@ const RECOVERY_SALT_FILE: &str = "recovery_salt.key";
 
 /// 检查用户是否存在
 pub fn user_exists(username: &str) -> bool {
-    let user_dir = get_user_data_dir(username);
-    std::path::Path::new(&get_user_file_path(username, MASTER_KEY_FILE)).exists()
-        && std::path::Path::new(&get_user_file_path(username, SALT_FILE)).exists()
-        && std::path::Path::new(&get_user_file_path(username, AUTH_VERIFY_FILE)).exists()
+    get_user_file_path(username, MASTER_KEY_FILE).exists()
+        && get_user_file_path(username, SALT_FILE).exists()
+        && get_user_file_path(username, AUTH_VERIFY_FILE).exists()
 }
 
 /// 获取所有已存在的用户名
@@ -110,8 +110,8 @@ pub fn generate_recovery_code() -> String {
 }
 
 /// 保存文件
-fn save_file(path: &str, data: &[u8]) -> Result<(), String> {
-    if let Some(parent) = std::path::Path::new(path).parent() {
+fn save_file(path: &Path, data: &[u8]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("创建目录失败: {}", e))?;
     }
@@ -120,7 +120,7 @@ fn save_file(path: &str, data: &[u8]) -> Result<(), String> {
 }
 
 /// 读取文件
-fn load_file(path: &str) -> Result<Vec<u8>, String> {
+fn load_file(path: &Path) -> Result<Vec<u8>, String> {
     std::fs::read(path)
         .map_err(|e| format!("读取文件失败: {}", e))
 }
@@ -136,8 +136,6 @@ pub fn set_master_password(username: &str, password: &str) -> Result<String, Str
     if is_master_password_set(username) {
         return Err("主密码已设置".to_string());
     }
-
-    let user_dir = get_user_data_dir(username);
 
     // 1. 生成随机盐值
     let salt = generate_salt();
@@ -370,13 +368,13 @@ pub fn decrypt_fields(
 
 /// 检查指定用户是否有恢复密钥文件
 pub fn has_recovery_key(username: &str) -> bool {
-    std::path::Path::new(&get_user_file_path(username, RECOVERY_KEY_FILE)).exists()
-        && std::path::Path::new(&get_user_file_path(username, RECOVERY_SALT_FILE)).exists()
+    get_user_file_path(username, RECOVERY_KEY_FILE).exists()
+        && get_user_file_path(username, RECOVERY_SALT_FILE).exists()
 }
 
 /// 获取数据库路径
-pub fn get_db_path(username: &str) -> String {
-    format!("{}/data_{}.db", get_user_data_dir(username), username)
+pub fn get_db_path(username: &str) -> PathBuf {
+    get_user_data_dir(username).join(format!("data_{}.db", username))
 }
 
 #[cfg(test)]

@@ -302,10 +302,12 @@ pub fn delete_template(state: State<'_, DbState>, id: String) -> Result<bool, St
 
 #[tauri::command]
 pub fn export_database(username: String, path: String) -> Result<(), String> {
+    use std::path::Path;
+
     let db_path = crypto::get_db_path(&username);
 
     // 确保导出目录存在
-    if let Some(parent) = std::path::Path::new(&path).parent() {
+    if let Some(parent) = Path::new(&path).parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("创建导出目录失败: {}", e))?;
     }
@@ -471,9 +473,10 @@ pub fn reset_password_with_recovery(state: State<'_, DbState>, username: String,
 #[tauri::command]
 pub fn export_user_data(username: String, output_path: String) -> Result<String, String> {
     use std::io::Write;
+    use std::path::Path;
     use zip::write::FileOptions;
 
-    let user_dir = format!("data/{}", username);
+    let user_dir = Path::new("data").join(&username);
 
     // 需要导出的文件列表（不包含恢复码明文）
     let files_to_export = [
@@ -497,8 +500,8 @@ pub fn export_user_data(username: String, output_path: String) -> Result<String,
     let mut files_added = 0;
 
     for filename in &files_to_export {
-        let file_path = format!("{}/{}", user_dir, filename);
-        if std::path::Path::new(&file_path).exists() {
+        let file_path = user_dir.join(filename);
+        if file_path.exists() {
             let content = std::fs::read(&file_path)
                 .map_err(|e| format!("读取文件 {} 失败: {}", filename, e))?;
 
@@ -526,8 +529,9 @@ pub fn export_user_data(username: String, output_path: String) -> Result<String,
 #[tauri::command]
 pub fn import_user_data(state: State<'_, DbState>, username: String, zip_path: String) -> Result<String, String> {
     use std::io::Read;
+    use std::path::Path;
 
-    let user_dir = format!("data/{}", username);
+    let user_dir = Path::new("data").join(&username);
 
     // 创建用户数据目录
     std::fs::create_dir_all(&user_dir)
@@ -550,19 +554,18 @@ pub fn import_user_data(state: State<'_, DbState>, username: String, zip_path: S
 
     // 解压文件
     let mut files_imported = 0;
-    let user_dir_path = std::path::Path::new(&user_dir);
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
             .map_err(|e| format!("读取ZIP条目失败: {}", e))?;
 
         let outpath = match file.enclosed_name() {
-            Some(path) => user_dir_path.join(path),
+            Some(path) => user_dir.join(path),
             None => continue,
         };
 
         // 防止路径遍历攻击
-        if !outpath.starts_with(user_dir_path) {
+        if !outpath.starts_with(&user_dir) {
             continue;
         }
 
@@ -582,7 +585,7 @@ pub fn import_user_data(state: State<'_, DbState>, username: String, zip_path: S
 
     // 尝试初始化数据库连接
     let db_path = crypto::get_db_path(&username);
-    if std::path::Path::new(&db_path).exists() {
+    if db_path.exists() {
         state.init_for_user(&username)?;
     }
 
