@@ -9,7 +9,8 @@ Write-Host "==========================================" -ForegroundColor Cyan
 
 # Project root directory
 $ProjectDir = $PSScriptRoot
-$DistDir = Join-Path $ProjectDir "windows_dist"
+$DistDir = Join-Path $ProjectDir "dist"
+$EnvDir = Join-Path $DistDir "env"
 
 # Clean old dist directory
 Write-Host ""
@@ -17,7 +18,7 @@ Write-Host "[1/4] Cleaning old build artifacts..." -ForegroundColor Yellow
 if (Test-Path $DistDir) {
     Remove-Item -Recurse -Force $DistDir
 }
-New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
+New-Item -ItemType Directory -Path $EnvDir -Force | Out-Null
 
 # Build frontend
 Write-Host ""
@@ -41,37 +42,37 @@ if ($LASTEXITCODE -ne 0) {
 
 # Copy build artifacts
 Write-Host ""
-Write-Host "[4/4] Copying build artifacts to $DistDir..." -ForegroundColor Yellow
+Write-Host "[4/4] Copying build artifacts..." -ForegroundColor Yellow
 
-# Copy executable
+# Copy executable to dist root
 $ExePath = Join-Path $ProjectDir "src-tauri\target\release\secret-warehouse.exe"
 if (Test-Path $ExePath) {
     Copy-Item $ExePath $DistDir
-    Write-Host "  OK Executable: secret-warehouse.exe" -ForegroundColor Green
+    Write-Host "  OK Executable: secret-warehouse.exe (double-click to run)" -ForegroundColor Green
 }
 
-# Copy bundle packages
+# Copy config file to env directory
+$ConfigPath = Join-Path $ProjectDir "src-tauri\tauri.conf.json"
+if (Test-Path $ConfigPath) {
+    Copy-Item $ConfigPath $EnvDir
+}
+
+# Copy bundle packages to env directory
 $BundleDir = Join-Path $ProjectDir "src-tauri\target\release\bundle"
 if (Test-Path $BundleDir) {
     # MSI installer
     $MsiDir = Join-Path $BundleDir "msi"
     if (Test-Path $MsiDir) {
-        Copy-Item -Recurse $MsiDir $DistDir
-        Write-Host "  OK MSI installer: windows_dist\msi\" -ForegroundColor Green
+        Copy-Item -Recurse $MsiDir $EnvDir
+        Write-Host "  OK MSI installer: env\msi\" -ForegroundColor Green
     }
 
     # NSIS installer
     $NsisDir = Join-Path $BundleDir "nsis"
     if (Test-Path $NsisDir) {
-        Copy-Item -Recurse $NsisDir $DistDir
-        Write-Host "  OK NSIS installer: windows_dist\nsis\" -ForegroundColor Green
+        Copy-Item -Recurse $NsisDir $EnvDir
+        Write-Host "  OK NSIS installer: env\nsis\" -ForegroundColor Green
     }
-}
-
-# Copy config file
-$ConfigPath = Join-Path $ProjectDir "src-tauri\tauri.conf.json"
-if (Test-Path $ConfigPath) {
-    Copy-Item $ConfigPath $DistDir
 }
 
 Write-Host ""
@@ -80,4 +81,4 @@ Write-Host "  Windows build complete!" -ForegroundColor Green
 Write-Host "  Output directory: $DistDir" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-Get-ChildItem $DistDir | Format-Table Name, Length, LastWriteTime -AutoSize
+Get-ChildItem $DistDir | Format-Table Name, LastWriteTime -AutoSize
