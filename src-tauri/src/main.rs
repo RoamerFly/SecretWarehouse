@@ -32,6 +32,8 @@ fn main() {
             commands::list_templates,
             commands::update_template,
             commands::delete_template,
+            commands::export_database,
+            commands::import_database,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

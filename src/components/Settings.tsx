@@ -1,8 +1,13 @@
 import { useState, useRef } from 'react'
 import { useStore } from '../stores/useStore'
 import { useTheme } from './ThemeProvider'
-import { X, Sun, Moon, Monitor, Type, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key } from 'lucide-react'
+import {
+  X, Sun, Moon, Monitor, Type, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key,
+  Database, Download, Upload, Palette, AlignLeft, Grid3X3
+} from 'lucide-react'
 import { appWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/tauri'
+import { open, save } from '@tauri-apps/api/dialog'
 
 // Preset resolutions
 const windowResolutions = [
@@ -131,8 +136,18 @@ function SliderWithInput({ label, value, min, max, step = 1, unit, onChange, ico
   )
 }
 
+// Section divider component
+function SectionTitle({ icon: Icon, title }: { icon: React.ElementType, title: string }) {
+  return (
+    <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700/40">
+      <Icon className="w-4 h-4 text-violet-500" />
+      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h3>
+    </div>
+  )
+}
+
 export default function Settings() {
-  const { showSettings, setShowSettings, settings, updateSettings, resetSettings } = useStore()
+  const { showSettings, setShowSettings, settings, updateSettings, resetSettings, fetchSecrets } = useStore()
   const { theme, setTheme } = useTheme()
   const [showSaved, setShowSaved] = useState(false)
   const [editingWidth, setEditingWidth] = useState(false)
@@ -141,6 +156,8 @@ export default function Settings() {
   const [heightInput, setHeightInput] = useState(String(settings.customHeight))
   const widthInputRef = useRef<HTMLInputElement>(null)
   const heightInputRef = useRef<HTMLInputElement>(null)
+  const [dataStatus, setDataStatus] = useState<'idle' | 'exporting' | 'importing' | 'success' | 'error'>('idle')
+  const [dataMessage, setDataMessage] = useState('')
 
   // Show saved notification
   const handleUpdateSettings = (partial: Partial<typeof settings>) => {
@@ -217,6 +234,70 @@ export default function Settings() {
     setTimeout(() => heightInputRef.current?.select(), 0)
   }
 
+  // Export database
+  const handleExport = async () => {
+    try {
+      setDataStatus('exporting')
+      setDataMessage('正在导出...')
+
+      const filePath = await save({
+        defaultPath: `secret_warehouse_backup_${new Date().toISOString().slice(0, 10)}.db`,
+        filters: [{ name: 'Database', extensions: ['db'] }]
+      })
+
+      if (filePath) {
+        await invoke('export_database', { path: filePath })
+        setDataStatus('success')
+        setDataMessage('导出成功！')
+        setTimeout(() => {
+          setDataStatus('idle')
+          setDataMessage('')
+        }, 2000)
+      } else {
+        setDataStatus('idle')
+        setDataMessage('')
+      }
+    } catch (err) {
+      setDataStatus('error')
+      setDataMessage(`导出失败: ${err}`)
+      setTimeout(() => {
+        setDataStatus('idle')
+        setDataMessage('')
+      }, 3000)
+    }
+  }
+
+  // Import database
+  const handleImport = async () => {
+    try {
+      const filePath = await open({
+        filters: [{ name: 'Database', extensions: ['db'] }]
+      })
+
+      if (filePath && typeof filePath === 'string') {
+        setDataStatus('importing')
+        setDataMessage('正在导入...')
+
+        await invoke('import_database', { path: filePath })
+        await fetchSecrets()
+
+        setDataStatus('success')
+        setDataMessage('导入成功！')
+        setTimeout(() => {
+          setDataStatus('idle')
+          setDataMessage('')
+        }, 2000)
+      }
+    } catch (err) {
+      setDataStatus('error')
+      setDataMessage(`导入失败: ${err}`)
+      setTimeout(() => {
+        setDataStatus('idle')
+        setDataMessage('')
+      }, 3000)
+    }
+  }
+
   if (!showSettings) return null
 
   return (
@@ -254,160 +335,216 @@ export default function Settings() {
         {/* Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Settings Panel */}
-          <div className="w-1/2 overflow-y-auto p-6 space-y-8 border-r border-slate-200 dark:border-slate-700/40">
-            {/* Theme */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Sun className="w-4 h-4 text-violet-500" />
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">主题模式</label>
+          <div className="w-1/2 overflow-y-auto p-6 space-y-6 border-r border-slate-200 dark:border-slate-700/40">
+            {/* 外观 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={Palette} title="外观" />
+
+              {/* Theme */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Sun className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">主题模式</label>
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'light' as const, icon: Sun, label: '浅色' },
+                    { value: 'dark' as const, icon: Moon, label: '深色' },
+                    { value: 'system' as const, icon: Monitor, label: '跟随系统' },
+                  ].map(({ value, icon: Icon, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTheme(value)}
+                      className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
+                        theme === value
+                          ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-xs font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex gap-2">
-                {[
-                  { value: 'light' as const, icon: Sun, label: '浅色' },
-                  { value: 'dark' as const, icon: Moon, label: '深色' },
-                  { value: 'system' as const, icon: Monitor, label: '跟随系统' },
-                ].map(({ value, icon: Icon, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-xl transition-all ${
-                      theme === value
-                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-xs font-medium">{label}</span>
-                  </button>
-                ))}
+
+              {/* Window Size */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Maximize2 className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">窗口大小</label>
+                </div>
+                <select
+                  value={settings.windowSize}
+                  onChange={(e) => handleWindowSizeChange(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+                >
+                  {windowResolutions.map(({ value, label }) => (
+                    <option
+                      key={value}
+                      value={value}
+                      disabled={value.startsWith('divider')}
+                      className={value.startsWith('divider') ? 'text-slate-400' : ''}
+                    >
+                      {label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Custom width/height inputs */}
+                {settings.windowSize === 'custom' && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">宽度</label>
+                      {editingWidth ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            ref={widthInputRef}
+                            type="number"
+                            value={widthInput}
+                            onChange={(e) => setWidthInput(e.target.value)}
+                            onBlur={handleCustomWidthChange}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCustomWidthChange()
+                              if (e.key === 'Escape') setEditingWidth(false)
+                            }}
+                            className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
+                          />
+                          <span className="text-xs text-slate-500">px</span>
+                        </div>
+                      ) : (
+                        <div
+                          onDoubleClick={handleWidthDoubleClick}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-center text-violet-600 dark:text-violet-400 font-mono cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-colors"
+                          title="双击编辑"
+                        >
+                          {settings.customWidth} px
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-slate-400 mt-5">×</span>
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">高度</label>
+                      {editingHeight ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            ref={heightInputRef}
+                            type="number"
+                            value={heightInput}
+                            onChange={(e) => setHeightInput(e.target.value)}
+                            onBlur={handleCustomHeightChange}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCustomHeightChange()
+                              if (e.key === 'Escape') setEditingHeight(false)
+                            }}
+                            className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
+                          />
+                          <span className="text-xs text-slate-500">px</span>
+                        </div>
+                      ) : (
+                        <div
+                          onDoubleClick={handleHeightDoubleClick}
+                          className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-center text-violet-600 dark:text-violet-400 font-mono cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-colors"
+                          title="双击编辑"
+                        >
+                          {settings.customHeight} px
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => applyWindowSize('custom', settings.customWidth, settings.customHeight)}
+                      className="mt-5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      应用
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Window Size */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Maximize2 className="w-4 h-4 text-violet-500" />
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">窗口大小</label>
-              </div>
-              <select
-                value={settings.windowSize}
-                onChange={(e) => handleWindowSizeChange(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
-              >
-                {windowResolutions.map(({ value, label }) => (
-                  <option
-                    key={value}
-                    value={value}
-                    disabled={value.startsWith('divider')}
-                    className={value.startsWith('divider') ? 'text-slate-400' : ''}
-                  >
-                    {label}
-                  </option>
-                ))}
-              </select>
+            {/* 字体 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={Type} title="字体" />
 
-              {/* Custom width/height inputs */}
-              {settings.windowSize === 'custom' && (
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">宽度</label>
-                    {editingWidth ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          ref={widthInputRef}
-                          type="number"
-                          value={widthInput}
-                          onChange={(e) => setWidthInput(e.target.value)}
-                          onBlur={handleCustomWidthChange}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCustomWidthChange()
-                            if (e.key === 'Escape') setEditingWidth(false)
-                          }}
-                          className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
-                        />
-                        <span className="text-xs text-slate-500">px</span>
-                      </div>
-                    ) : (
-                      <div
-                        onDoubleClick={handleWidthDoubleClick}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-center text-violet-600 dark:text-violet-400 font-mono cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-colors"
-                        title="双击编辑"
-                      >
-                        {settings.customWidth} px
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-slate-400 mt-5">×</span>
-                  <div className="flex-1">
-                    <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">高度</label>
-                    {editingHeight ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          ref={heightInputRef}
-                          type="number"
-                          value={heightInput}
-                          onChange={(e) => setHeightInput(e.target.value)}
-                          onBlur={handleCustomHeightChange}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleCustomHeightChange()
-                            if (e.key === 'Escape') setEditingHeight(false)
-                          }}
-                          className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
-                        />
-                        <span className="text-xs text-slate-500">px</span>
-                      </div>
-                    ) : (
-                      <div
-                        onDoubleClick={handleHeightDoubleClick}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-center text-violet-600 dark:text-violet-400 font-mono cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-colors"
-                        title="双击编辑"
-                      >
-                        {settings.customHeight} px
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => applyWindowSize('custom', settings.customWidth, settings.customHeight)}
-                    className="mt-5 px-3 py-1.5 bg-violet-500 hover:bg-violet-600 text-white text-xs font-medium rounded-lg transition-colors"
-                  >
-                    应用
-                  </button>
+              <SliderWithInput
+                label="字体大小"
+                value={settings.fontSize}
+                min={10}
+                max={38}
+                unit="px"
+                icon={<AlignLeft className="w-4 h-4 text-slate-400" />}
+                onChange={(value) => handleUpdateSettings({ fontSize: value })}
+              />
+            </div>
+
+            {/* 布局 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={Grid3X3} title="布局" />
+
+              <SliderWithInput
+                label="卡片大小"
+                value={settings.cardSize}
+                min={24}
+                max={88}
+                unit="px"
+                icon={<LayoutGrid className="w-4 h-4 text-slate-400" />}
+                onChange={(value) => handleUpdateSettings({ cardSize: value })}
+              />
+
+              <SliderWithInput
+                label="间距"
+                value={settings.spacing}
+                min={4}
+                max={28}
+                unit="px"
+                icon={<Space className="w-4 h-4 text-slate-400" />}
+                onChange={(value) => handleUpdateSettings({ spacing: value })}
+              />
+            </div>
+
+            {/* 数据 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={Database} title="数据" />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExport}
+                  disabled={dataStatus === 'exporting'}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>导出数据库</span>
+                </button>
+                <button
+                  onClick={handleImport}
+                  disabled={dataStatus === 'importing'}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>导入数据库</span>
+                </button>
+              </div>
+
+              {dataMessage && (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                  dataStatus === 'success'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                    : dataStatus === 'error'
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}>
+                  {(dataStatus === 'exporting' || dataStatus === 'importing') && (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  )}
+                  {dataStatus === 'success' && <Check className="w-4 h-4" />}
+                  <span>{dataMessage}</span>
                 </div>
               )}
+
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                导出将备份所有密码数据到本地文件，导入将替换当前所有数据。
+              </p>
             </div>
-
-            {/* Font Size Slider */}
-            <SliderWithInput
-              label="字体大小"
-              value={settings.fontSize}
-              min={1}
-              max={999}
-              unit="px"
-              icon={<Type className="w-4 h-4 text-violet-500" />}
-              onChange={(value) => handleUpdateSettings({ fontSize: value })}
-            />
-
-            {/* Card Size Slider */}
-            <SliderWithInput
-              label="卡片大小"
-              value={settings.cardSize}
-              min={1}
-              max={999}
-              unit="px"
-              icon={<LayoutGrid className="w-4 h-4 text-violet-500" />}
-              onChange={(value) => handleUpdateSettings({ cardSize: value })}
-            />
-
-            {/* Spacing Slider */}
-            <SliderWithInput
-              label="间距"
-              value={settings.spacing}
-              min={0}
-              max={999}
-              unit="px"
-              icon={<Space className="w-4 h-4 text-violet-500" />}
-              onChange={(value) => handleUpdateSettings({ spacing: value })}
-            />
           </div>
 
           {/* Preview Panel */}

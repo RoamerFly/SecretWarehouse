@@ -298,3 +298,46 @@ pub fn update_template(
 pub fn delete_template(state: State<'_, DbState>, id: String) -> Result<bool, String> {
     state.delete_template(&id)
 }
+
+#[tauri::command]
+pub fn export_database(path: String) -> Result<(), String> {
+    std::fs::copy("secret_warehouse.db", &path)
+        .map_err(|e| format!("导出数据库失败: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn import_database(state: State<'_, DbState>, path: String) -> Result<(), String> {
+    // Verify the import file is a valid SQLite database
+    let test_conn = rusqlite::Connection::open(&path)
+        .map_err(|e| format!("无法打开导入文件: {}", e))?;
+
+    // Check if it has the expected tables
+    let table_exists: bool = test_conn.query_row(
+        "SELECT COUNT(*) > 0 FROM sqlite_master WHERE type='table' AND name='secrets'",
+        [],
+        |row| row.get(0)
+    ).map_err(|e| format!("验证数据库格式失败: {}", e))?;
+
+    if !table_exists {
+        return Err("导入文件不是有效的数据库格式".to_string());
+    }
+    drop(test_conn);
+
+    // Close current connection by locking the mutex
+    let mut conn = state.conn.lock().map_err(|e| format!("锁定数据库失败: {}", e))?;
+
+    // Copy the imported file over the current database
+    *conn = rusqlite::Connection::open_in_memory()
+        .map_err(|e| format!("创建临时连接失败: {}", e))?;
+
+    // Copy the imported file
+    std::fs::copy(&path, "secret_warehouse.db")
+        .map_err(|e| format!("复制数据库文件失败: {}", e))?;
+
+    // Reopen the database
+    *conn = rusqlite::Connection::open("secret_warehouse.db")
+        .map_err(|e| format!("重新打开数据库失败: {}", e))?;
+
+    Ok(())
+}
