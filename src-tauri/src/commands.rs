@@ -301,19 +301,23 @@ pub fn delete_template(state: State<'_, DbState>, id: String) -> Result<bool, St
 }
 
 #[tauri::command]
-pub fn export_database(path: String) -> Result<(), String> {
+pub fn export_database(username: String, path: String) -> Result<(), String> {
+    let db_path = crypto::get_db_path(&username);
+
     // 确保导出目录存在
     if let Some(parent) = std::path::Path::new(&path).parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("创建导出目录失败: {}", e))?;
     }
-    std::fs::copy("data/data_main.db", &path)
+    std::fs::copy(&db_path, &path)
         .map_err(|e| format!("导出数据库失败: {}", e))?;
     Ok(())
 }
 
 #[tauri::command]
-pub fn import_database(state: State<'_, DbState>, path: String, mode: String) -> Result<usize, String> {
+pub fn import_database(state: State<'_, DbState>, username: String, path: String, mode: String) -> Result<usize, String> {
+    let db_path = crypto::get_db_path(&username);
+
     // Verify the import file is a valid SQLite database
     let import_conn = rusqlite::Connection::open(&path)
         .map_err(|e| format!("无法打开导入文件: {}", e))?;
@@ -335,9 +339,9 @@ pub fn import_database(state: State<'_, DbState>, path: String, mode: String) ->
         let mut conn = state.conn.lock().map_err(|e| format!("锁定数据库失败: {}", e))?;
         *conn = rusqlite::Connection::open_in_memory()
             .map_err(|e| format!("创建临时连接失败: {}", e))?;
-        std::fs::copy(&path, "data/data_main.db")
+        std::fs::copy(&path, &db_path)
             .map_err(|e| format!("复制数据库文件失败: {}", e))?;
-        *conn = rusqlite::Connection::open("data/data_main.db")
+        *conn = rusqlite::Connection::open(&db_path)
             .map_err(|e| format!("重新打开数据库失败: {}", e))?;
 
         // Count imported entries
@@ -398,19 +402,37 @@ pub fn import_database(state: State<'_, DbState>, path: String, mode: String) ->
     }
 }
 
+// ============ 用户和密码管理相关命令 ============
+
 #[tauri::command]
-pub fn is_master_password_set() -> Result<bool, String> {
-    Ok(crypto::is_master_password_set())
+pub fn get_all_usernames() -> Result<Vec<String>, String> {
+    Ok(crypto::get_all_usernames())
 }
 
 #[tauri::command]
-pub fn set_master_password(password: String) -> Result<String, String> {
-    crypto::set_master_password(&password)
+pub fn is_master_password_set(username: String) -> Result<bool, String> {
+    Ok(crypto::is_master_password_set(&username))
 }
 
 #[tauri::command]
-pub fn verify_master_password(password: String) -> Result<bool, String> {
-    crypto::verify_master_password(&password)
+pub fn set_master_password(state: State<'_, DbState>, username: String, password: String) -> Result<String, String> {
+    // 创建用户主密码和加密密钥
+    let recovery_code = crypto::set_master_password(&username, &password)?;
+
+    // 初始化用户数据库
+    state.init_for_user(&username)?;
+
+    Ok(recovery_code)
+}
+
+#[tauri::command]
+pub fn verify_master_password(state: State<'_, DbState>, username: String, password: String) -> Result<bool, String> {
+    let success = crypto::verify_master_password(&username, &password)?;
+    if success {
+        // 初始化用户数据库
+        state.init_for_user(&username)?;
+    }
+    Ok(success)
 }
 
 #[tauri::command]
@@ -419,20 +441,25 @@ pub fn clear_encryption_key() {
 }
 
 #[tauri::command]
-pub fn has_recovery_key() -> Result<bool, String> {
-    Ok(crypto::has_recovery_key())
+pub fn has_recovery_key(username: String) -> Result<bool, String> {
+    Ok(crypto::has_recovery_key(&username))
 }
 
 #[tauri::command]
-pub fn unlock_with_recovery_code(recovery_code: String) -> Result<bool, String> {
-    match crypto::unlock_with_recovery_code(&recovery_code) {
+pub fn unlock_with_recovery_code(username: String, recovery_code: String) -> Result<bool, String> {
+    match crypto::unlock_with_recovery_code(&username, &recovery_code) {
         Ok(_) => Ok(true),
         Err(e) => Err(e),
     }
 }
 
 #[tauri::command]
-pub fn reset_password_with_recovery(recovery_code: String, new_password: String) -> Result<(), String> {
-    let master_key = crypto::unlock_with_recovery_code(&recovery_code)?;
-    crypto::reset_password_with_master_key(master_key, &new_password)
+pub fn reset_password_with_recovery(state: State<'_, DbState>, username: String, recovery_code: String, new_password: String) -> Result<(), String> {
+    let master_key = crypto::unlock_with_recovery_code(&username, &recovery_code)?;
+    crypto::reset_password_with_master_key(&username, master_key, &new_password)?;
+
+    // 初始化用户数据库
+    state.init_for_user(&username)?;
+
+    Ok(())
 }

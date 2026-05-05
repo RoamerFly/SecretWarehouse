@@ -13,6 +13,7 @@ import MasterPassword from './components/MasterPassword'
 
 function AppContent() {
   const [isUnlocked, setIsUnlocked] = useState(false)
+  const [currentUsername, setCurrentUsername] = useState<string>('')
   const fetchSecrets = useStore((s) => s.fetchSecrets)
   const showForm = useStore((s) => s.showForm)
   const selectedSecret = useStore((s) => s.selectedSecret)
@@ -38,7 +39,8 @@ function AppContent() {
     ;(window as any).__selectedTemplate = template
   }
 
-  const handleUnlock = () => {
+  const handleUnlock = (username: string) => {
+    setCurrentUsername(username)
     setIsUnlocked(true)
     fetchSecrets()
   }
@@ -49,7 +51,7 @@ function AppContent() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-white" style={{ fontSize: `${settings.fontSize}px` }}>
-      <Sidebar />
+      <Sidebar username={currentUsername} />
       <div className="flex-1 flex flex-col overflow-hidden" style={{ gap: `${settings.spacing}px` }}>
         <SearchBar />
         <SecretList />

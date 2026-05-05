@@ -9,21 +9,54 @@ use rand::RngCore;
 use sha2::{Sha256, Digest};
 use std::sync::Mutex;
 
+/// 当前登录的用户名
+static CURRENT_USERNAME: Mutex<Option<String>> = Mutex::new(None);
+
 /// 全局加密密钥（运行时从密钥文件解密得到）
 static MASTER_KEY: Mutex<Option<[u8; 32]>> = Mutex::new(None);
 
-/// 文件路径
-const SALT_FILE: &str = "data/salt.key";
-const MASTER_KEY_FILE: &str = "data/master.key";
-const AUTH_VERIFY_FILE: &str = "data/auth.verify";
-const RECOVERY_KEY_FILE: &str = "data/recovery.key";
-const RECOVERY_SALT_FILE: &str = "data/recovery_salt.key";
+/// 获取用户数据目录
+fn get_user_data_dir(username: &str) -> String {
+    format!("data/{}", username)
+}
 
-/// 检查是否已设置主密码
-pub fn is_master_password_set() -> bool {
-    std::path::Path::new(MASTER_KEY_FILE).exists()
-        && std::path::Path::new(SALT_FILE).exists()
-        && std::path::Path::new(AUTH_VERIFY_FILE).exists()
+/// 获取用户文件路径
+fn get_user_file_path(username: &str, filename: &str) -> String {
+    format!("{}/{}", get_user_data_dir(username), filename)
+}
+
+/// 文件路径常量（相对于用户目录）
+const SALT_FILE: &str = "salt.key";
+const MASTER_KEY_FILE: &str = "master.key";
+const AUTH_VERIFY_FILE: &str = "auth.verify";
+const RECOVERY_KEY_FILE: &str = "recovery.key";
+const RECOVERY_SALT_FILE: &str = "recovery_salt.key";
+
+/// 检查用户是否存在
+pub fn user_exists(username: &str) -> bool {
+    let user_dir = get_user_data_dir(username);
+    std::path::Path::new(&get_user_file_path(username, MASTER_KEY_FILE)).exists()
+        && std::path::Path::new(&get_user_file_path(username, SALT_FILE)).exists()
+        && std::path::Path::new(&get_user_file_path(username, AUTH_VERIFY_FILE)).exists()
+}
+
+/// 获取所有已存在的用户名
+pub fn get_all_usernames() -> Vec<String> {
+    let mut usernames = Vec::new();
+    if let Ok(entries) = std::fs::read_dir("data") {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                if let Some(name) = entry.file_name().to_str() {
+                    // 检查该目录是否包含有效的用户数据
+                    if user_exists(name) {
+                        usernames.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    usernames.sort();
+    usernames
 }
 
 /// 从密码派生密钥（用于加密Master Key）
@@ -92,12 +125,19 @@ fn load_file(path: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("读取文件失败: {}", e))
 }
 
-/// 设置主密码（首次使用）
+/// 检查用户是否已设置主密码
+pub fn is_master_password_set(username: &str) -> bool {
+    user_exists(username)
+}
+
+/// 为用户创建主密码（首次使用）
 /// 返回恢复码，用户必须备份
-pub fn set_master_password(password: &str) -> Result<String, String> {
-    if is_master_password_set() {
+pub fn set_master_password(username: &str, password: &str) -> Result<String, String> {
+    if is_master_password_set(username) {
         return Err("主密码已设置".to_string());
     }
+
+    let user_dir = get_user_data_dir(username);
 
     // 1. 生成随机盐值
     let salt = generate_salt();
@@ -122,39 +162,42 @@ pub fn set_master_password(password: &str) -> Result<String, String> {
     let encrypted_recovery_master_key = encrypt_value(&BASE64.encode(master_key), &recovery_key)?;
 
     // 8. 保存所有文件
-    save_file(SALT_FILE, &salt)?;
-    save_file(MASTER_KEY_FILE, encrypted_master_key.as_bytes())?;
-    save_file(RECOVERY_SALT_FILE, &recovery_salt)?;
-    save_file(RECOVERY_KEY_FILE, encrypted_recovery_master_key.as_bytes())?;
+    save_file(&get_user_file_path(username, SALT_FILE), &salt)?;
+    save_file(&get_user_file_path(username, MASTER_KEY_FILE), encrypted_master_key.as_bytes())?;
+    save_file(&get_user_file_path(username, RECOVERY_SALT_FILE), &recovery_salt)?;
+    save_file(&get_user_file_path(username, RECOVERY_KEY_FILE), encrypted_recovery_master_key.as_bytes())?;
 
     // 9. 保存验证信息（用于验证密码是否正确）
     let verify_data = "SecretWarehouse_MasterKey_Verify";
     let encrypted_verify = encrypt_value(verify_data, &derived_key)?;
-    save_file(AUTH_VERIFY_FILE, encrypted_verify.as_bytes())?;
+    save_file(&get_user_file_path(username, AUTH_VERIFY_FILE), encrypted_verify.as_bytes())?;
 
-    // 10. 设置全局Master Key
+    // 10. 设置当前用户名和全局Master Key
+    let mut current_user = CURRENT_USERNAME.lock().map_err(|e| e.to_string())?;
+    *current_user = Some(username.to_string());
+
     let mut global_key = MASTER_KEY.lock().map_err(|e| e.to_string())?;
     *global_key = Some(master_key);
 
     Ok(recovery_code)
 }
 
-/// 验证主密码
-pub fn verify_master_password(password: &str) -> Result<bool, String> {
+/// 验证用户主密码
+pub fn verify_master_password(username: &str, password: &str) -> Result<bool, String> {
     // 1. 读取盐值
-    let salt = load_file(SALT_FILE)?;
+    let salt = load_file(&get_user_file_path(username, SALT_FILE))?;
 
     // 2. 从密码派生密钥
     let derived_key = derive_key_from_password(password, &salt);
 
     // 3. 尝试解密验证文件
-    let encrypted_verify = String::from_utf8(load_file(AUTH_VERIFY_FILE)?)
+    let encrypted_verify = String::from_utf8(load_file(&get_user_file_path(username, AUTH_VERIFY_FILE))?)
         .map_err(|e| format!("读取验证文件失败: {}", e))?;
 
     match decrypt_value(&encrypted_verify, &derived_key) {
         Ok(verify_data) if verify_data == "SecretWarehouse_MasterKey_Verify" => {
             // 4. 密码正确，解密Master Key
-            let encrypted_master_key = String::from_utf8(load_file(MASTER_KEY_FILE)?)
+            let encrypted_master_key = String::from_utf8(load_file(&get_user_file_path(username, MASTER_KEY_FILE))?)
                 .map_err(|e| format!("读取密钥文件失败: {}", e))?;
 
             let master_key_base64 = decrypt_value(&encrypted_master_key, &derived_key)?;
@@ -168,7 +211,10 @@ pub fn verify_master_password(password: &str) -> Result<bool, String> {
             let mut master_key = [0u8; 32];
             master_key.copy_from_slice(&master_key_bytes);
 
-            // 设置全局Master Key
+            // 设置当前用户名和全局Master Key
+            let mut current_user = CURRENT_USERNAME.lock().map_err(|e| e.to_string())?;
+            *current_user = Some(username.to_string());
+
             let mut global_key = MASTER_KEY.lock().map_err(|e| e.to_string())?;
             *global_key = Some(master_key);
 
@@ -180,15 +226,15 @@ pub fn verify_master_password(password: &str) -> Result<bool, String> {
 
 /// 使用恢复码解锁并重置密码
 /// 返回 Master Key 以便设置新密码
-pub fn unlock_with_recovery_code(recovery_code: &str) -> Result<[u8; 32], String> {
+pub fn unlock_with_recovery_code(username: &str, recovery_code: &str) -> Result<[u8; 32], String> {
     // 1. 读取恢复码盐值
-    let recovery_salt = load_file(RECOVERY_SALT_FILE)?;
+    let recovery_salt = load_file(&get_user_file_path(username, RECOVERY_SALT_FILE))?;
 
     // 2. 从恢复码派生密钥
     let recovery_key = derive_key_from_recovery_code(recovery_code, &recovery_salt);
 
     // 3. 尝试解密恢复密钥文件
-    let encrypted_recovery_key = String::from_utf8(load_file(RECOVERY_KEY_FILE)?)
+    let encrypted_recovery_key = String::from_utf8(load_file(&get_user_file_path(username, RECOVERY_KEY_FILE))?)
         .map_err(|e| format!("读取恢复密钥文件失败: {}", e))?;
 
     match decrypt_value(&encrypted_recovery_key, &recovery_key) {
@@ -210,7 +256,7 @@ pub fn unlock_with_recovery_code(recovery_code: &str) -> Result<[u8; 32], String
 }
 
 /// 使用Master Key设置新密码
-pub fn reset_password_with_master_key(master_key: [u8; 32], new_password: &str) -> Result<(), String> {
+pub fn reset_password_with_master_key(username: &str, master_key: [u8; 32], new_password: &str) -> Result<(), String> {
     // 1. 生成新的盐值
     let salt = generate_salt();
 
@@ -231,17 +277,25 @@ pub fn reset_password_with_master_key(master_key: [u8; 32], new_password: &str) 
     let encrypted_verify = encrypt_value(verify_data, &derived_key)?;
 
     // 6. 保存所有文件
-    save_file(SALT_FILE, &salt)?;
-    save_file(MASTER_KEY_FILE, encrypted_master_key.as_bytes())?;
-    save_file(RECOVERY_SALT_FILE, &recovery_salt)?;
-    save_file(RECOVERY_KEY_FILE, encrypted_recovery_master_key.as_bytes())?;
-    save_file(AUTH_VERIFY_FILE, encrypted_verify.as_bytes())?;
+    save_file(&get_user_file_path(username, SALT_FILE), &salt)?;
+    save_file(&get_user_file_path(username, MASTER_KEY_FILE), encrypted_master_key.as_bytes())?;
+    save_file(&get_user_file_path(username, RECOVERY_SALT_FILE), &recovery_salt)?;
+    save_file(&get_user_file_path(username, RECOVERY_KEY_FILE), encrypted_recovery_master_key.as_bytes())?;
+    save_file(&get_user_file_path(username, AUTH_VERIFY_FILE), encrypted_verify.as_bytes())?;
 
-    // 7. 设置全局Master Key
+    // 7. 设置当前用户名和全局Master Key
+    let mut current_user = CURRENT_USERNAME.lock().map_err(|e| e.to_string())?;
+    *current_user = Some(username.to_string());
+
     let mut global_key = MASTER_KEY.lock().map_err(|e| e.to_string())?;
     *global_key = Some(master_key);
 
     Ok(())
+}
+
+/// 获取当前用户名
+pub fn get_current_username() -> Option<String> {
+    CURRENT_USERNAME.lock().ok()?.clone()
 }
 
 /// 获取当前Master Key
@@ -252,6 +306,9 @@ pub fn get_encryption_key() -> [u8; 32] {
 
 /// 清除内存中的密钥（退出时调用）
 pub fn clear_encryption_key() {
+    let mut current_user = CURRENT_USERNAME.lock().expect("获取用户名锁失败");
+    *current_user = None;
+
     let mut global_key = MASTER_KEY.lock().expect("获取密钥锁失败");
     *global_key = None;
 }
@@ -311,10 +368,15 @@ pub fn decrypt_fields(
     serde_json::from_str(&json).map_err(|e| e.to_string())
 }
 
-/// 检查是否有恢复密钥文件
-pub fn has_recovery_key() -> bool {
-    std::path::Path::new(RECOVERY_KEY_FILE).exists()
-        && std::path::Path::new(RECOVERY_SALT_FILE).exists()
+/// 检查指定用户是否有恢复密钥文件
+pub fn has_recovery_key(username: &str) -> bool {
+    std::path::Path::new(&get_user_file_path(username, RECOVERY_KEY_FILE)).exists()
+        && std::path::Path::new(&get_user_file_path(username, RECOVERY_SALT_FILE)).exists()
+}
+
+/// 获取数据库路径
+pub fn get_db_path(username: &str) -> String {
+    format!("{}/data_{}.db", get_user_data_dir(username), username)
 }
 
 #[cfg(test)]

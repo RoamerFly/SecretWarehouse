@@ -1,8 +1,12 @@
 import { useStore } from '../stores/useStore'
-import { Plus, Star, Layers, Settings, Lock, Database, Loader2 } from 'lucide-react'
+import { Plus, Star, Layers, Settings, Lock, Database, Loader2, User } from 'lucide-react'
 import { useState } from 'react'
 
-export default function Sidebar() {
+interface SidebarProps {
+  username?: string
+}
+
+export default function Sidebar({ username }: SidebarProps) {
   const { allTags, tagCounts, selectedTag, selectTag, setShowForm, setShowSettings, secrets, generateTestData } = useStore()
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -32,9 +36,16 @@ export default function Sidebar() {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-slate-900 dark:text-white">SecretWarehouse</h1>
-            <p className="text-[10px] text-slate-500 font-medium">安全密码管理器</p>
+            {username ? (
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                <User className="w-3 h-3" />
+                <span className="truncate">{username}</span>
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 font-medium">安全密码管理器</p>
+            )}
           </div>
         </div>
       </div>

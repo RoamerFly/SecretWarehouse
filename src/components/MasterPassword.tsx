@@ -2,16 +2,20 @@ import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { save } from '@tauri-apps/api/dialog'
 import { writeTextFile } from '@tauri-apps/api/fs'
-import { Lock, Key, Eye, EyeOff, Check, AlertCircle, Download, RefreshCw, Copy } from 'lucide-react'
+import { Lock, Key, Eye, EyeOff, Check, AlertCircle, Download, RefreshCw, Copy, User } from 'lucide-react'
 
 interface MasterPasswordProps {
-  onUnlock: () => void
+  onUnlock: (username: string) => void
 }
 
 type ViewMode = 'loading' | 'setup' | 'unlock' | 'showRecovery' | 'forgotPassword' | 'resetPassword'
 
+const STORAGE_KEY_USERNAMES = 'secretwarehouse_usernames'
+const STORAGE_KEY_LAST_USER = 'secretwarehouse_last_user'
+
 export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('loading')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -22,22 +26,90 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [copied, setCopied] = useState(false)
+  const [existingUsernames, setExistingUsernames] = useState<string[]>([])
 
   useEffect(() => {
-    checkMasterPassword()
+    initializeUsernames()
   }, [])
 
-  const checkMasterPassword = async () => {
+  const initializeUsernames = async () => {
     try {
-      const isSet = await invoke<boolean>('is_master_password_set')
-      setViewMode(isSet ? 'unlock' : 'setup')
+      // 从后端获取已存在的用户名
+      const backendUsernames = await invoke<string[]>('get_all_usernames')
+
+      // 从localStorage获取缓存的用户名列表
+      const cachedUsernames = getStoredUsernames()
+
+      // 合并两个列表（去重）
+      const allUsernames = [...new Set([...backendUsernames, ...cachedUsernames])]
+      setExistingUsernames(allUsernames)
+
+      // 更新localStorage
+      localStorage.setItem(STORAGE_KEY_USERNAMES, JSON.stringify(allUsernames))
+
+      // 获取上次登录的用户名
+      const lastUser = localStorage.getItem(STORAGE_KEY_LAST_USER)
+      if (lastUser && allUsernames.includes(lastUser)) {
+        setUsername(lastUser)
+        // 检查该用户是否存在（已设置密码）
+        const isSet = await invoke<boolean>('is_master_password_set', { username: lastUser })
+        setViewMode(isSet ? 'unlock' : 'setup')
+      } else if (allUsernames.length > 0) {
+        // 默认选择第一个用户
+        setUsername(allUsernames[0])
+        const isSet = await invoke<boolean>('is_master_password_set', { username: allUsernames[0] })
+        setViewMode(isSet ? 'unlock' : 'setup')
+      } else {
+        setViewMode('setup')
+      }
     } catch (err) {
-      console.error('Failed to check master password:', err)
+      console.error('Failed to initialize usernames:', err)
+      setViewMode('setup')
+    }
+  }
+
+  const getStoredUsernames = (): string[] => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_USERNAMES)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  const saveUsernameToList = (name: string) => {
+    if (!name.trim()) return
+    const stored = getStoredUsernames()
+    if (!stored.includes(name)) {
+      stored.push(name)
+      localStorage.setItem(STORAGE_KEY_USERNAMES, JSON.stringify(stored))
+      setExistingUsernames(stored)
+    }
+    // 保存为上次登录用户
+    localStorage.setItem(STORAGE_KEY_LAST_USER, name)
+  }
+
+  const handleUsernameChange = async (newUsername: string) => {
+    setUsername(newUsername)
+    setError('')
+
+    if (newUsername.trim()) {
+      try {
+        const isSet = await invoke<boolean>('is_master_password_set', { username: newUsername })
+        setViewMode(isSet ? 'unlock' : 'setup')
+      } catch (err) {
+        console.error('Failed to check password status:', err)
+      }
     }
   }
 
   const handleSetup = async () => {
     setError('')
+
+    if (!username.trim()) {
+      setError('请输入用户名')
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('两次输入的密码不一致')
@@ -46,8 +118,9 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
 
     setLoading(true)
     try {
-      const code = await invoke<string>('set_master_password', { password })
+      const code = await invoke<string>('set_master_password', { username, password })
       setRecoveryCode(code)
+      saveUsernameToList(username)
       setViewMode('showRecovery')
     } catch (err) {
       setError(String(err))
@@ -61,9 +134,10 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
     setLoading(true)
 
     try {
-      const success = await invoke<boolean>('verify_master_password', { password })
+      const success = await invoke<boolean>('verify_master_password', { username, password })
       if (success) {
-        onUnlock()
+        saveUsernameToList(username)
+        onUnlock(username)
       } else {
         setError('密码错误')
       }
@@ -78,7 +152,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
     try {
       const now = new Date()
       const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
-      const defaultName = `SecretWarehouse_${recoveryCode.replace(/-/g, '')}_Recovery_Key_${dateStr}.txt`
+      const defaultName = `SecretWarehouse_${username}_${recoveryCode.replace(/-/g, '')}_Recovery_Key_${dateStr}.txt`
 
       const filePath = await save({
         defaultPath: defaultName,
@@ -89,6 +163,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
         const content = `SecretWarehouse 恢复码
 ================================
 
+用户名: ${username}
 恢复码: ${recoveryCode}
 
 请妥善保管此恢复码，忘记主密码时可用于恢复数据。
@@ -118,7 +193,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
   }
 
   const handleContinueAfterRecovery = () => {
-    onUnlock()
+    onUnlock(username)
   }
 
   const handleForgotPassword = async () => {
@@ -126,7 +201,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
     setLoading(true)
 
     try {
-      const success = await invoke<boolean>('unlock_with_recovery_code', { recoveryCode: recoveryInput })
+      const success = await invoke<boolean>('unlock_with_recovery_code', { username, recoveryCode: recoveryInput })
       if (success) {
         setViewMode('resetPassword')
       } else {
@@ -150,10 +225,11 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
     setLoading(true)
     try {
       await invoke('reset_password_with_recovery', {
+        username,
         recoveryCode: recoveryInput,
         newPassword
       })
-      onUnlock()
+      onUnlock(username)
     } catch (err) {
       setError(String(err))
     } finally {
@@ -251,6 +327,18 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
 
             {/* Form */}
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  用户名
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  disabled
+                  className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   恢复码
@@ -398,6 +486,29 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  用户名
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    list="usernames-list"
+                    placeholder="输入用户名"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    autoFocus
+                  />
+                  <datalist id="usernames-list">
+                    {existingUsernames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   设置主密码
                 </label>
                 <div className="relative">
@@ -409,7 +520,6 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
                     onKeyDown={(e) => handleKeyDown(e, handleSetup)}
                     placeholder="输入密码"
                     className="w-full pl-11 pr-11 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    autoFocus
                   />
                   <button
                     onClick={() => setShowPassword(!showPassword)}
@@ -446,7 +556,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
 
               <button
                 onClick={handleSetup}
-                disabled={loading || !password || !confirmPassword}
+                disabled={loading || !username || !password || !confirmPassword}
                 className="w-full py-3 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -487,6 +597,28 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  用户名
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    list="usernames-list"
+                    placeholder="输入用户名"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                  <datalist id="usernames-list">
+                    {existingUsernames.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   主密码
                 </label>
                 <div className="relative">
@@ -518,7 +650,7 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
 
               <button
                 onClick={handleUnlock}
-                disabled={loading || !password}
+                disabled={loading || !username || !password}
                 className="w-full py-3 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (

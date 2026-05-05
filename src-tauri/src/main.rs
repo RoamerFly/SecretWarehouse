@@ -34,6 +34,7 @@ fn main() {
             commands::delete_template,
             commands::export_database,
             commands::import_database,
+            commands::get_all_usernames,
             commands::is_master_password_set,
             commands::set_master_password,
             commands::verify_master_password,

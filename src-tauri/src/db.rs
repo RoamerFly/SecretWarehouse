@@ -5,15 +5,29 @@ use std::sync::Mutex;
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
+    pub username: Mutex<Option<String>>,
 }
 
 impl DbState {
     pub fn new() -> Result<Self, String> {
-        // 确保 data 目录存在
-        std::fs::create_dir_all("data")
-            .map_err(|e| format!("创建data目录失败: {}", e))?;
+        Ok(DbState {
+            conn: Mutex::new(Connection::open_in_memory()
+                .map_err(|e| format!("创建内存数据库失败: {}", e))?),
+            username: Mutex::new(None),
+        })
+    }
 
-        let conn = Connection::open("data/data_main.db")
+    /// 为指定用户初始化数据库连接
+    pub fn init_for_user(&self, username: &str) -> Result<(), String> {
+        let db_path = crypto::get_db_path(username);
+
+        // 确保用户数据目录存在
+        if let Some(parent) = std::path::Path::new(&db_path).parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("创建用户数据目录失败: {}", e))?;
+        }
+
+        let conn = Connection::open(&db_path)
             .map_err(|e| format!("打开数据库失败: {}", e))?;
 
         conn.execute_batch(
@@ -69,9 +83,14 @@ impl DbState {
             "ALTER TABLE secrets ADD COLUMN sensitive_fields TEXT DEFAULT '[]';"
         );
 
-        Ok(DbState {
-            conn: Mutex::new(conn),
-        })
+        // 更新连接和用户名
+        let mut state_conn = self.conn.lock().map_err(|e| e.to_string())?;
+        *state_conn = conn;
+
+        let mut state_username = self.username.lock().map_err(|e| e.to_string())?;
+        *state_username = Some(username.to_string());
+
+        Ok(())
     }
 
     pub fn create_secret(&self, req: CreateSecretRequest) -> Result<SecretEntry, String> {
