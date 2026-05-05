@@ -156,51 +156,22 @@ cargo --version
 #### 3. 平台特定依赖
 
 **Linux (Ubuntu/Debian)：**
-
 ```bash
-sudo apt update
-sudo apt install -y \
-  build-essential \
-  curl \
-  wget \
-  libssl-dev \
-  libgtk-3-dev \
-  libayatana-appindicator3-dev \
-  librsvg2-dev \
-  libwebkit2gtk-4.0-dev \
-  libjavascriptcoregtk-4.0-dev \
-  libsoup2.4-dev
+sudo apt install -y build-essential libssl-dev libgtk-3-dev libwebkit2gtk-4.0-dev
 ```
 
 **Linux (Fedora)：**
-
 ```bash
-sudo dnf install -y \
-  gcc gcc-c++ \
-  openssl-devel \
-  gtk3-devel \
-  libappindicator-gtk3-devel \
-  librsvg2-devel \
-  webkit2gtk4.0-devel \
-  javascriptcoregtk4.0-devel \
-  libsoup-devel
+sudo dnf install -y gcc gcc-c++ openssl-devel gtk3-devel webkit2gtk4.0-devel
 ```
 
 **macOS：**
-
 ```bash
-# 安装 Xcode Command Line Tools
 xcode-select --install
-
-# 安装 Homebrew (可选)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
 **Windows：**
-
-1. 安装 [Microsoft Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-2. 安装 [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
-3. 确保在安装时选择 "C++ build tools"
+安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，勾选 "C++ build tools"
 
 ---
 
