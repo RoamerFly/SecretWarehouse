@@ -1,6 +1,11 @@
 # SecretWarehouse - Windows 构建脚本
 # 使用方法: PowerShell 中运行 .\build_windows.ps1
 
+# 设置 UTF-8 编码
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -23,7 +28,7 @@ New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
 Write-Host ""
 Write-Host "[2/4] 构建前端资源..." -ForegroundColor Yellow
 Set-Location $ProjectDir
-npm run build
+cmd /c "npm run build"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "前端构建失败!" -ForegroundColor Red
     exit 1
