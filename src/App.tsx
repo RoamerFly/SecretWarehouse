@@ -8,6 +8,7 @@ import SecretDetail from './components/SecretDetail'
 import SecretForm from './components/SecretForm'
 import TemplateList from './components/TemplateList'
 import TemplateForm from './components/TemplateForm'
+import Settings from './components/Settings'
 
 function AppContent() {
   const fetchSecrets = useStore((s) => s.fetchSecrets)
@@ -15,6 +16,8 @@ function AppContent() {
   const selectedSecret = useStore((s) => s.selectedSecret)
   const showTemplates = useStore((s) => s.showTemplates)
   const showTemplateForm = useStore((s) => s.showTemplateForm)
+  const showSettings = useStore((s) => s.showSettings)
+  const settings = useStore((s) => s.settings)
   const setShowTemplates = useStore((s) => s.setShowTemplates)
   const setShowForm = useStore((s) => s.setShowForm)
   const initialized = useRef(false)
@@ -37,10 +40,23 @@ function AppContent() {
     ;(window as any).__selectedTemplate = template
   }
 
+  // Generate classes based on settings
+  const fontSizeClass = {
+    small: 'text-sm',
+    medium: 'text-base',
+    large: 'text-lg',
+  }[settings.fontSize]
+
+  const spacingClass = {
+    tight: 'gap-2',
+    normal: 'gap-4',
+    relaxed: 'gap-6',
+  }[settings.spacing]
+
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+    <div className={`flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-white ${fontSizeClass}`}>
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`flex-1 flex flex-col overflow-hidden ${spacingClass}`}>
         <SearchBar />
         <SecretList />
       </div>
@@ -48,6 +64,7 @@ function AppContent() {
       {showForm && <SecretForm />}
       {showTemplates && <TemplateList onSelectTemplate={handleSelectTemplate} />}
       {showTemplateForm && <TemplateForm />}
+      {showSettings && <Settings />}
     </div>
   )
 }

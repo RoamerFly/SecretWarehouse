@@ -2,6 +2,40 @@ import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/tauri'
 import { SecretEntry, CreateSecretRequest, UpdateSecretRequest, Template, CreateTemplateRequest, UpdateTemplateRequest } from '../types'
 
+interface AppSettings {
+  fontSize: 'small' | 'medium' | 'large'
+  cardSize: 'compact' | 'normal' | 'comfortable'
+  spacing: 'tight' | 'normal' | 'relaxed'
+}
+
+const defaultSettings: AppSettings = {
+  fontSize: 'medium',
+  cardSize: 'normal',
+  spacing: 'normal',
+}
+
+// Load settings from localStorage
+const loadSettings = (): AppSettings => {
+  try {
+    const saved = localStorage.getItem('secret-warehouse-settings')
+    if (saved) {
+      return { ...defaultSettings, ...JSON.parse(saved) }
+    }
+  } catch (e) {
+    console.error('Failed to load settings:', e)
+  }
+  return defaultSettings
+}
+
+// Save settings to localStorage
+const saveSettings = (settings: AppSettings) => {
+  try {
+    localStorage.setItem('secret-warehouse-settings', JSON.stringify(settings))
+  } catch (e) {
+    console.error('Failed to save settings:', e)
+  }
+}
+
 interface AppState {
   // State
   secrets: SecretEntry[]
@@ -24,6 +58,10 @@ interface AppState {
   showTemplates: boolean
   showTemplateForm: boolean
   editingTemplate: Template | null
+
+  // Settings
+  showSettings: boolean
+  settings: AppSettings
 
   // Actions
   fetchSecrets: (tag?: string) => Promise<void>
@@ -56,6 +94,11 @@ interface AppState {
   setShowTemplates: (show: boolean) => void
   setShowTemplateForm: (show: boolean) => void
   setEditingTemplate: (template: Template | null) => void
+
+  // Settings actions
+  setShowSettings: (show: boolean) => void
+  updateSettings: (settings: Partial<AppSettings>) => void
+  resetSettings: () => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -79,6 +122,10 @@ export const useStore = create<AppState>((set, get) => ({
   showTemplates: false,
   showTemplateForm: false,
   editingTemplate: null,
+
+  // Settings
+  showSettings: false,
+  settings: loadSettings(),
 
   fetchSecrets: async (tag?: string) => {
     set({ isLoading: true, error: null })
@@ -342,4 +389,18 @@ export const useStore = create<AppState>((set, get) => ({
   setShowTemplateForm: (show) => set({ showTemplateForm: show, editingTemplate: show ? get().editingTemplate : null }),
 
   setEditingTemplate: (template) => set({ editingTemplate: template, showTemplateForm: template !== null }),
+
+  // Settings actions
+  setShowSettings: (show) => set({ showSettings: show }),
+
+  updateSettings: (partial) => {
+    const newSettings = { ...get().settings, ...partial }
+    saveSettings(newSettings)
+    set({ settings: newSettings })
+  },
+
+  resetSettings: () => {
+    saveSettings(defaultSettings)
+    set({ settings: defaultSettings })
+  },
 }))

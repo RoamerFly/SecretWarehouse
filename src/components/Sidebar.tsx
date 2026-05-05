@@ -1,21 +1,13 @@
 import { useStore } from '../stores/useStore'
-import { useTheme } from './ThemeProvider'
-import { Plus, Star, Layers, Sun, Moon, Monitor, Lock, Database, Loader2 } from 'lucide-react'
+import { Plus, Star, Layers, Settings, Lock, Database, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Sidebar() {
-  const { allTags, tagCounts, selectedTag, selectTag, setShowForm, secrets, generateTestData } = useStore()
-  const { theme, setTheme } = useTheme()
+  const { allTags, tagCounts, selectedTag, selectTag, setShowForm, setShowSettings, secrets, generateTestData } = useStore()
   const [isGenerating, setIsGenerating] = useState(false)
 
   const allCount = secrets.length
   const favoriteCount = secrets.filter(s => s.favorite).length
-
-  const themeOptions = [
-    { value: 'light' as const, icon: Sun, label: '浅色' },
-    { value: 'dark' as const, icon: Moon, label: '深色' },
-    { value: 'system' as const, icon: Monitor, label: '跟随系统' },
-  ]
 
   const handleGenerateTestData = async () => {
     setIsGenerating(true)
@@ -141,24 +133,15 @@ export default function Sidebar() {
         <div className="flex-1" />
       )}
 
-      {/* Theme Switcher */}
+      {/* Settings Button */}
       <div className="p-4 border-t border-slate-200 dark:border-slate-700/40">
-        <div className="flex gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
-          {themeOptions.map(({ value, icon: Icon, label }) => (
-            <button
-              key={value}
-              onClick={() => setTheme(value)}
-              className={`flex-1 flex items-center justify-center p-2 rounded-lg transition-colors ${
-                theme === value
-                  ? 'bg-white dark:bg-slate-700 text-violet-600 dark:text-violet-400 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
-              }`}
-              title={label}
-            >
-              <Icon className="w-4 h-4" />
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors"
+        >
+          <Settings className="w-4 h-4" />
+          <span>设置</span>
+        </button>
       </div>
     </aside>
   )

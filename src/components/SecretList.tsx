@@ -8,9 +8,16 @@ export default function SecretList() {
   const {
     secrets, selectSecret, isLoading,
     isSelectionMode, selectedIds, toggleSelection,
-    selectAll, clearSelection, deleteSecrets
+    selectAll, clearSelection, deleteSecrets, settings
   } = useStore()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Get card size settings
+  const cardGapClass = {
+    compact: 'gap-3',
+    normal: 'gap-4',
+    comfortable: 'gap-5',
+  }[settings.cardSize]
 
   const handleDoubleClick = (secret: SecretEntry) => {
     if (!isSelectionMode) {
@@ -87,7 +94,7 @@ export default function SecretList() {
             <p className="text-sm text-slate-500">点击"新增条目"开始添加</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${cardGapClass}`}>
             {secrets.map((secret, index) => (
               <SecretCard
                 key={secret.id}
@@ -145,12 +152,33 @@ function SecretCard({ secret, index, isSelected, isSelectionMode, onDoubleClick,
   const Icon = iconMap[secret.icon] || Key
   const gradientColor = iconColors[secret.icon] || 'from-yellow-400 to-amber-500'
   const preview = getPreview(secret.fields, secret.sensitiveFields)
+  const settings = useStore((s) => s.settings)
+
+  // Card padding based on settings
+  const cardPaddingClass = {
+    compact: 'p-3',
+    normal: 'p-4',
+    comfortable: 'p-5',
+  }[settings.cardSize]
+
+  // Icon size based on settings
+  const iconSizeClass = {
+    compact: 'w-8 h-8',
+    normal: 'w-10 h-10',
+    comfortable: 'w-12 h-12',
+  }[settings.cardSize]
+
+  const iconInnerSize = {
+    compact: 'w-4 h-4',
+    normal: 'w-5 h-5',
+    comfortable: 'w-6 h-6',
+  }[settings.cardSize]
 
   return (
     <div
       onDoubleClick={() => onDoubleClick(secret)}
       onClick={() => onClick(secret)}
-      className={`group bg-white dark:bg-slate-800 rounded-2xl p-5 border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
+      className={`group bg-white dark:bg-slate-800 rounded-2xl ${cardPaddingClass} border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
         isSelected
           ? 'border-violet-500 dark:border-violet-500 shadow-lg shadow-violet-500/20'
           : 'border-slate-200/80 dark:border-slate-700/50 hover:border-violet-300 dark:hover:border-violet-500/50 hover:shadow-xl hover:shadow-violet-500/10'
@@ -169,8 +197,8 @@ function SecretCard({ secret, index, isSelected, isSelectionMode, onDoubleClick,
           </div>
         )}
 
-        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-          <Icon className="w-6 h-6 text-white" />
+        <div className={`${iconSizeClass} rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+          <Icon className={`${iconInnerSize} text-white`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
