@@ -380,8 +380,8 @@ export default function Settings() {
             <SliderWithInput
               label="字体大小"
               value={settings.fontSize}
-              min={10}
-              max={48}
+              min={1}
+              max={999}
               unit="px"
               icon={<Type className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ fontSize: value })}
@@ -391,8 +391,8 @@ export default function Settings() {
             <SliderWithInput
               label="卡片大小"
               value={settings.cardSize}
-              min={24}
-              max={112}
+              min={1}
+              max={999}
               unit="px"
               icon={<LayoutGrid className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ cardSize: value })}
@@ -402,8 +402,8 @@ export default function Settings() {
             <SliderWithInput
               label="间距"
               value={settings.spacing}
-              min={4}
-              max={32}
+              min={0}
+              max={999}
               unit="px"
               icon={<Space className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ spacing: value })}
