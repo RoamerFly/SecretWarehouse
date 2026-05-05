@@ -183,7 +183,7 @@ export default function Settings() {
 
   // Handle custom width change
   const handleCustomWidthChange = async () => {
-    const newWidth = Math.max(400, Math.min(3840, parseInt(widthInput) || 1200))
+    const newWidth = parseInt(widthInput) || 1200
     setWidthInput(String(newWidth))
     handleUpdateSettings({ customWidth: newWidth })
     setEditingWidth(false)
@@ -194,7 +194,7 @@ export default function Settings() {
 
   // Handle custom height change
   const handleCustomHeightChange = async () => {
-    const newHeight = Math.max(300, Math.min(2160, parseInt(heightInput) || 800))
+    const newHeight = parseInt(heightInput) || 800
     setHeightInput(String(newHeight))
     handleUpdateSettings({ customHeight: newHeight })
     setEditingHeight(false)
@@ -324,8 +324,6 @@ export default function Settings() {
                             if (e.key === 'Escape') setEditingWidth(false)
                           }}
                           className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
-                          min={400}
-                          max={3840}
                         />
                         <span className="text-xs text-slate-500">px</span>
                       </div>
@@ -355,8 +353,6 @@ export default function Settings() {
                             if (e.key === 'Escape') setEditingHeight(false)
                           }}
                           className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-slate-900 border border-violet-500 rounded-lg text-slate-900 dark:text-white focus:outline-none"
-                          min={300}
-                          max={2160}
                         />
                         <span className="text-xs text-slate-500">px</span>
                       </div>
@@ -385,7 +381,7 @@ export default function Settings() {
               label="字体大小"
               value={settings.fontSize}
               min={10}
-              max={24}
+              max={48}
               unit="px"
               icon={<Type className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ fontSize: value })}
@@ -396,7 +392,7 @@ export default function Settings() {
               label="卡片大小"
               value={settings.cardSize}
               min={24}
-              max={56}
+              max={112}
               unit="px"
               icon={<LayoutGrid className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ cardSize: value })}
@@ -407,7 +403,7 @@ export default function Settings() {
               label="间距"
               value={settings.spacing}
               min={4}
-              max={16}
+              max={32}
               unit="px"
               icon={<Space className="w-4 h-4 text-violet-500" />}
               onChange={(value) => handleUpdateSettings({ spacing: value })}
