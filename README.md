@@ -129,15 +129,17 @@
 # 检查版本
 node --version
 npm --version
+```
 
-# 安装方式 (推荐使用 nvm)
-# Linux/macOS
+**Windows：**
+前往 [Node.js 中文网](https://nodejs.org/zh-cn/download/) 下载 Windows 安装程序 (.msi)，直接安装即可。
+
+**Linux/macOS：**
+```bash
+# 推荐使用 nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 nvm install 18
 nvm use 18
-
-# Windows
-# 下载安装 nvm-windows: https://github.com/coreybutler/nvm-windows/releases
 ```
 
 #### 2. Rust 工具链
