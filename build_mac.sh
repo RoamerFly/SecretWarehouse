@@ -31,29 +31,22 @@ cargo build --release
 echo ""
 echo "[4/4] 整理构建产物..."
 
-# 复制可执行文件到 dist 根目录
-if [ -f "$PROJECT_DIR/src-tauri/target/release/secret-warehouse" ]; then
-    cp "$PROJECT_DIR/src-tauri/target/release/secret-warehouse" "$DIST_DIR/"
-    chmod +x "$DIST_DIR/secret-warehouse"
-    echo "  ✓ 可执行文件: secret-warehouse"
-fi
-
 # 复制配置文件到 env 目录
 cp "$PROJECT_DIR/src-tauri/tauri.conf.json" "$DIST_DIR/env/" 2>/dev/null || true
 
 # 复制 bundle 包
 BUNDLE_DIR="$PROJECT_DIR/src-tauri/target/release/bundle"
 if [ -d "$BUNDLE_DIR" ]; then
-    # DMG 镜像
+    # macOS 应用包 - 放到 dist 根目录，双击即可运行
+    if [ -d "$BUNDLE_DIR/macos" ]; then
+        cp -r "$BUNDLE_DIR/macos"/*.app "$DIST_DIR/" 2>/dev/null || true
+        echo "  ✓ 应用包: SecretWarehouse.app (双击运行)"
+    fi
+
+    # DMG 镜像 - 放到 env 目录，用于分发
     if [ -d "$BUNDLE_DIR/dmg" ]; then
         cp -r "$BUNDLE_DIR/dmg" "$DIST_DIR/env/"
         echo "  ✓ DMG 镜像: env/dmg/"
-    fi
-
-    # macOS 应用包
-    if [ -d "$BUNDLE_DIR/macos" ]; then
-        cp -r "$BUNDLE_DIR/macos" "$DIST_DIR/env/"
-        echo "  ✓ 应用包: env/macos/"
     fi
 fi
 
