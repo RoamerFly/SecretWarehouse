@@ -9,7 +9,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 
 # Project root directory
 $ProjectDir = $PSScriptRoot
-$DistDir = Join-Path $ProjectDir "dist"
+$DistDir = Join-Path $ProjectDir "dist_windows"
 $EnvDir = Join-Path $DistDir "env"
 
 # Clean old dist directory

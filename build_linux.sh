@@ -7,7 +7,7 @@ echo "=========================================="
 
 # 项目根目录
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DIST_DIR="$PROJECT_DIR/dist"
+DIST_DIR="$PROJECT_DIR/dist_linux"
 
 # 清理旧的构建产物
 echo ""
