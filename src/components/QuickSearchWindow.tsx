@@ -52,13 +52,14 @@ export default function QuickSearchWindow() {
         // 尝试获取总数来检查是否有活动会话
         await invoke<number>('get_total_secrets_count')
         setIsLocked(false)
+        // 聚焦输入框
+        inputRef.current?.focus()
       } catch {
-        setIsLocked(true)
+        // 未登录，直接隐藏窗口
+        appWindow.hide()
       }
     }
     checkSession()
-    // 聚焦输入框
-    inputRef.current?.focus()
   }, [])
 
   // 监听 focus-input 事件
