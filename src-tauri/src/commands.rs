@@ -704,3 +704,12 @@ pub fn copy_field_to_clipboard(
 
     Ok(format!("已复制 '{}'", field_name))
 }
+
+/// 隐藏快速搜索窗口
+#[tauri::command]
+pub fn hide_quick_search_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_window("quick-search") {
+        window.hide().map_err(|e| format!("隐藏窗口失败: {}", e))?;
+    }
+    Ok(())
+}

@@ -153,6 +153,7 @@ fn main() {
             commands::search_secrets_quick,
             commands::copy_field_to_clipboard,
             commands::get_secret_field_values,
+            commands::hide_quick_search_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
