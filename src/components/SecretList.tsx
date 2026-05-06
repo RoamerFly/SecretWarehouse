@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useStore } from '../stores/useStore'
-import { Key, Lock, Star, Eye, CheckSquare, Square, Trash2, X } from 'lucide-react'
+import { Key, Lock, Star, Eye, CheckSquare, Square, Trash2, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { iconMap, iconColors } from '../constants/icons'
 import { SecretEntry } from '../types'
 
@@ -9,26 +9,80 @@ export default function SecretList() {
     secrets, selectSecret, isLoading,
     isSelectionMode, selectedIds, toggleSelection,
     selectAll, clearSelection, deleteSecrets, settings,
-    showPasswordCheckOnly, passwordCheckResults
+    passwordCheckMode, updateSettings
   } = useStore()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showSortMenu, setShowSortMenu] = useState(false)
 
-  // Filter secrets based on password check results if filter is active
-  const filteredSecrets = showPasswordCheckOnly
-    ? secrets.filter(s => passwordCheckResults.some(r => r.secretId === s.id))
-    : secrets
+  // Calculate password strength for all secrets when password check mode is enabled
+  const passwordStrengthMap = useMemo(() => {
+    const map = new Map<string, string>()
+    if (passwordCheckMode) {
+      const keywords = settings.passwordCheckKeywords || ['密码', 'password', '口令', 'PIN']
+      secrets.forEach(secret => {
+        Object.entries(secret.fields).forEach(([key, value]) => {
+          const matchesKeyword = keywords.some(keyword =>
+            key.toLowerCase().includes(keyword.toLowerCase())
+          )
+          if (matchesKeyword) {
+            const strength = calculatePasswordStrength(value)
+            const existing = map.get(secret.id)
+            // Keep the weakest strength if there are multiple passwords
+            if (!existing || getStrengthPriority(strength) < getStrengthPriority(existing)) {
+              map.set(secret.id, strength)
+            }
+          }
+        })
+      })
+    }
+    return map
+  }, [secrets, passwordCheckMode, settings.passwordCheckKeywords])
 
-  // Create a map of secret ID to password strength
-  const passwordStrengthMap = new Map<string, string>()
-  if (showPasswordCheckOnly) {
-    passwordCheckResults.forEach(result => {
-      const existing = passwordStrengthMap.get(result.secretId)
-      // Keep the weakest strength if there are multiple passwords
-      if (!existing || getStrengthPriority(result.strength) < getStrengthPriority(existing)) {
-        passwordStrengthMap.set(result.secretId, result.strength)
-      }
-    })
-  }
+  // Sort secrets
+  const filteredSecrets = useMemo(() => {
+    const sorted = [...secrets]
+
+    if (passwordCheckMode) {
+      // Password check mode: sort by strength (weak first)
+      sorted.sort((a, b) => {
+        const strengthA = passwordStrengthMap.get(a.id)
+        const strengthB = passwordStrengthMap.get(b.id)
+
+        // Items without passwords go to the end
+        if (!strengthA && !strengthB) return 0
+        if (!strengthA) return 1
+        if (!strengthB) return -1
+
+        // Sort by strength priority (lower = weaker = comes first)
+        return getStrengthPriority(strengthA) - getStrengthPriority(strengthB)
+      })
+    } else {
+      // Normal mode: sort by settings
+      const { sortField, sortDirection } = settings
+      const multiplier = sortDirection === 'asc' ? 1 : -1
+
+      sorted.sort((a, b) => {
+        let comparison = 0
+        switch (sortField) {
+          case 'updated_at':
+            comparison = a.updated_at - b.updated_at
+            break
+          case 'created_at':
+            comparison = a.created_at - b.created_at
+            break
+          case 'title':
+            comparison = a.title.localeCompare(b.title, 'zh-CN')
+            break
+          case 'fields_count':
+            comparison = Object.keys(a.fields).length - Object.keys(b.fields).length
+            break
+        }
+        return comparison * multiplier
+      })
+    }
+
+    return sorted
+  }, [secrets, passwordCheckMode, passwordStrengthMap, settings.sortField, settings.sortDirection])
 
   const handleDoubleClick = (secret: SecretEntry) => {
     if (!isSelectionMode) {
@@ -94,6 +148,65 @@ export default function SecretList() {
         </div>
       )}
 
+      {/* Sort toolbar */}
+      {!passwordCheckMode && (
+        <div className="px-6 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div className="relative">
+            <button
+              onClick={() => setShowSortMenu(!showSortMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              <span>{getSortLabel(settings.sortField)}</span>
+              {settings.sortDirection === 'asc' ? (
+                <ArrowUp className="w-3 h-3" />
+              ) : (
+                <ArrowDown className="w-3 h-3" />
+              )}
+            </button>
+            {showSortMenu && (
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
+                {[
+                  { field: 'updated_at' as const, label: '更新时间' },
+                  { field: 'created_at' as const, label: '创建时间' },
+                  { field: 'title' as const, label: '标题名称' },
+                  { field: 'fields_count' as const, label: '字段个数' },
+                ].map(({ field, label }) => (
+                  <button
+                    key={field}
+                    onClick={() => {
+                      if (settings.sortField === field) {
+                        updateSettings({ sortDirection: settings.sortDirection === 'asc' ? 'desc' : 'asc' })
+                      } else {
+                        updateSettings({ sortField: field })
+                      }
+                      setShowSortMenu(false)
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                      settings.sortField === field
+                        ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{label}</span>
+                    {settings.sortField === field && (
+                      settings.sortDirection === 'asc' ? (
+                        <ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3" />
+                      )
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="text-xs text-slate-500">
+            {filteredSecrets.length} 个条目
+          </span>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6" style={{ minHeight: 0, height: '100%' }}>
         {filteredSecrets.length === 0 ? (
@@ -102,10 +215,10 @@ export default function SecretList() {
               <Lock className="w-10 h-10 text-slate-400 dark:text-slate-600" />
             </div>
             <p className="text-base font-medium text-slate-600 dark:text-slate-400 mb-1">
-              {showPasswordCheckOnly ? '没有密码检测结果' : '暂无条目'}
+              暂无条目
             </p>
             <p className="text-sm text-slate-500">
-              {showPasswordCheckOnly ? '点击"密码强度检测"进行检测' : '点击"新增条目"开始添加'}
+              点击"新增条目"开始添加
             </p>
           </div>
         ) : (
@@ -119,7 +232,7 @@ export default function SecretList() {
                 isSelectionMode={isSelectionMode}
                 onDoubleClick={handleDoubleClick}
                 onClick={handleCardClick}
-                passwordStrength={showPasswordCheckOnly ? passwordStrengthMap.get(secret.id) : undefined}
+                passwordStrength={passwordCheckMode ? passwordStrengthMap.get(secret.id) : undefined}
               />
             ))}
           </div>
@@ -269,6 +382,29 @@ function getPreview(fields: Record<string, string>, sensitiveFields: string[] = 
   return ''
 }
 
+function calculatePasswordStrength(password: string): string {
+  if (!password) return '无密码'
+
+  let score = 0
+
+  // Length scoring
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
+  if (password.length >= 16) score++
+
+  // Character variety
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score++
+
+  // Determine strength
+  if (score <= 2) return '弱'
+  if (score <= 4) return '中'
+  if (score <= 6) return '强'
+  return '非常强'
+}
+
 function getStrengthColor(strength: string) {
   switch (strength) {
     case '弱': return 'text-red-500 bg-red-100 dark:bg-red-900/30'
@@ -286,5 +422,15 @@ function getStrengthPriority(strength: string): number {
     case '强': return 2
     case '非常强': return 3
     default: return 4
+  }
+}
+
+function getSortLabel(field: string): string {
+  switch (field) {
+    case 'updated_at': return '更新时间'
+    case 'created_at': return '创建时间'
+    case 'title': return '标题名称'
+    case 'fields_count': return '字段个数'
+    default: return '排序'
   }
 }

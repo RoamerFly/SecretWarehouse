@@ -54,6 +54,11 @@ pub fn get_total_secrets_count(state: State<'_, DbState>) -> Result<i64, String>
 }
 
 #[tauri::command]
+pub fn get_favorites_count(state: State<'_, DbState>) -> Result<i64, String> {
+    state.get_favorites_count()
+}
+
+#[tauri::command]
 pub fn update_secret(
     state: State<'_, DbState>,
     id: String,

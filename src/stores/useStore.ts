@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/tauri'
 import { SecretEntry, CreateSecretRequest, UpdateSecretRequest, Template, CreateTemplateRequest, UpdateTemplateRequest } from '../types'
 
+type SortField = 'updated_at' | 'created_at' | 'title' | 'fields_count'
+type SortDirection = 'asc' | 'desc'
+
 interface AppSettings {
   fontSize: number
   cardSize: number
@@ -10,6 +13,8 @@ interface AppSettings {
   customWidth: number
   customHeight: number
   passwordCheckKeywords: string[]  // 密码检测关键词
+  sortField: SortField  // 排序字段
+  sortDirection: SortDirection  // 排序方向
 }
 
 const defaultSettings: AppSettings = {
@@ -20,6 +25,8 @@ const defaultSettings: AppSettings = {
   customWidth: 1200,
   customHeight: 800,
   passwordCheckKeywords: ['密码', 'password', '口令', 'PIN'],
+  sortField: 'updated_at',
+  sortDirection: 'desc',
 }
 
 // Load settings from localStorage
@@ -56,6 +63,7 @@ interface AppState {
   // State
   secrets: SecretEntry[]
   totalSecretsCount: number  // 总数量（不受筛选影响）
+  favoritesCount: number  // 收藏数量（不受筛选影响）
   selectedSecret: SecretEntry | null
   allTags: string[]  // 所有标签
   tagCounts: Record<string, number>  // 标签计数
@@ -83,10 +91,12 @@ interface AppState {
   // Password check filter
   passwordCheckResults: PasswordCheckResult[]
   showPasswordCheckOnly: boolean
+  passwordCheckMode: boolean  // 密码强度检测开关模式
 
   // Actions
   fetchSecrets: (tag?: string) => Promise<void>
   fetchTotalCount: () => Promise<void>
+  fetchFavoritesCount: () => Promise<void>
   fetchAllTags: () => Promise<void>
   fetchTagCounts: () => Promise<void>
   createSecret: (req: CreateSecretRequest) => Promise<void>
@@ -125,11 +135,13 @@ interface AppState {
   // Password check actions
   setPasswordCheckResults: (results: PasswordCheckResult[]) => void
   setShowPasswordCheckOnly: (show: boolean) => void
+  setPasswordCheckMode: (mode: boolean) => void
 }
 
 export const useStore = create<AppState>((set, get) => ({
   secrets: [],
   totalSecretsCount: 0,
+  favoritesCount: 0,
   selectedSecret: null,
   allTags: [],
   tagCounts: {},
@@ -157,6 +169,7 @@ export const useStore = create<AppState>((set, get) => ({
   // Password check filter
   passwordCheckResults: [],
   showPasswordCheckOnly: false,
+  passwordCheckMode: false,
 
   fetchTotalCount: async () => {
     try {
@@ -164,6 +177,15 @@ export const useStore = create<AppState>((set, get) => ({
       set({ totalSecretsCount: count })
     } catch (err) {
       console.error('Failed to fetch total count:', err)
+    }
+  },
+
+  fetchFavoritesCount: async () => {
+    try {
+      const count = await invoke<number>('get_favorites_count')
+      set({ favoritesCount: count })
+    } catch (err) {
+      console.error('Failed to fetch favorites count:', err)
     }
   },
 
@@ -181,6 +203,7 @@ export const useStore = create<AppState>((set, get) => ({
       get().fetchAllTags()
       get().fetchTagCounts()
       get().fetchTotalCount()
+      get().fetchFavoritesCount()
     } catch (err) {
       set({ error: String(err), isLoading: false })
     }
@@ -448,4 +471,5 @@ export const useStore = create<AppState>((set, get) => ({
   // Password check actions
   setPasswordCheckResults: (results) => set({ passwordCheckResults: results }),
   setShowPasswordCheckOnly: (show) => set({ showPasswordCheckOnly: show }),
+  setPasswordCheckMode: (mode) => set({ passwordCheckMode: mode }),
 }))

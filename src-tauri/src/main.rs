@@ -20,6 +20,7 @@ fn main() {
             commands::get_secret,
             commands::list_secrets,
             commands::get_total_secrets_count,
+            commands::get_favorites_count,
             commands::update_secret,
             commands::delete_secret,
             commands::delete_secrets,

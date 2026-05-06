@@ -252,6 +252,16 @@ impl DbState {
         Ok(count)
     }
 
+    pub fn get_favorites_count(&self) -> Result<i64, String> {
+        let conn = self.conn.lock().map_err(|e| e.to_string())?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM secrets WHERE favorite = 1",
+            [],
+            |row| row.get(0),
+        ).map_err(|e| format!("查询收藏数量失败: {}", e))?;
+        Ok(count)
+    }
+
     pub fn update_secret(&self, req: UpdateSecretRequest) -> Result<SecretEntry, String> {
         let key = crypto::get_encryption_key();
 
