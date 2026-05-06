@@ -17,6 +17,8 @@ interface AppSettings {
   sortDirection: SortDirection  // 排序方向
   passwordCheckMode: boolean  // 密码强度检测开关
   clipboardClearSeconds: number  // 剪贴板自动清除秒数 (0=不自动清除)
+  quickSearchShortcut: string  // 快速搜索快捷键
+  quickSearchShowPlaintext: boolean  // 快速搜索是否显示明文
 }
 
 const defaultSettings: AppSettings = {
@@ -31,6 +33,8 @@ const defaultSettings: AppSettings = {
   sortDirection: 'desc',
   passwordCheckMode: false,
   clipboardClearSeconds: 30,
+  quickSearchShortcut: 'CommandOrControl+Shift+P',
+  quickSearchShowPlaintext: false,
 }
 
 // Load settings from localStorage

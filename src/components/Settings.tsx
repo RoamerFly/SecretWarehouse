@@ -657,6 +657,30 @@ export default function Settings({ username }: SettingsProps) {
                 icon={<Database className="w-4 h-4 text-slate-400" />}
                 onChange={(value) => handleUpdateSettings({ clipboardClearSeconds: value })}
               />
+
+              {/* Quick Search Shortcut */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Key className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">快速搜索快捷键</label>
+                </div>
+                <select
+                  value={settings.quickSearchShortcut}
+                  onChange={(e) => handleUpdateSettings({ quickSearchShortcut: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+                >
+                  <option value="CommandOrControl+Shift+P">Ctrl/Cmd + Shift + P</option>
+                  <option value="CommandOrControl+Shift+K">Ctrl/Cmd + Shift + K</option>
+                  <option value="CommandOrControl+Shift+F">Ctrl/Cmd + Shift + F</option>
+                  <option value="CommandOrControl+Shift+S">Ctrl/Cmd + Shift + S</option>
+                  <option value="CommandOrControl+Shift+Space">Ctrl/Cmd + Shift + Space</option>
+                  <option value="Alt+Space">Alt + Space</option>
+                  <option value="CommandOrControl+K">Ctrl/Cmd + K</option>
+                </select>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                  修改后需重启应用生效
+                </p>
+              </div>
             </div>
 
             {/* 数据 Section */}

@@ -610,6 +610,7 @@ pub fn import_user_data(state: State<'_, DbState>, username: String, zip_path: S
 pub struct QuickSearchResult {
     pub id: String,
     pub title: String,
+    pub description: String,
     pub icon: String,
     pub fields: Vec<FieldPreview>,
 }
@@ -622,7 +623,7 @@ pub struct FieldPreview {
 
 /// 快速搜索密码条目（用于全局快捷键弹窗）
 #[tauri::command]
-pub fn search_secrets_quick(state: State<'_, DbState>, query: String) -> Result<Vec<QuickSearchResult>, String> {
+pub fn search_secrets_quick(state: State<'_, DbState>, query: String, show_plaintext: bool) -> Result<Vec<QuickSearchResult>, String> {
     let secrets = state.search_secrets(&query)?;
 
     let results: Vec<QuickSearchResult> = secrets
@@ -630,16 +631,17 @@ pub fn search_secrets_quick(state: State<'_, DbState>, query: String) -> Result<
         .map(|s| {
             // 字段已经在查询时解密，直接使用
             let fields: Vec<FieldPreview> = s.fields
-                .keys()
-                .map(|name| FieldPreview {
-                    name: name.clone(),
-                    value: "***".to_string(), // 隐藏实际值
+                .into_iter()
+                .map(|(name, value)| FieldPreview {
+                    name,
+                    value: if show_plaintext { value } else { "***".to_string() },
                 })
                 .collect();
 
             QuickSearchResult {
                 id: s.id,
                 title: s.title,
+                description: s.description,
                 icon: s.icon,
                 fields,
             }
@@ -647,6 +649,19 @@ pub fn search_secrets_quick(state: State<'_, DbState>, query: String) -> Result<
         .collect();
 
     Ok(results)
+}
+
+/// 获取条目字段明文值（用于快速搜索显示明文）
+#[tauri::command]
+pub fn get_secret_field_values(state: State<'_, DbState>, secret_id: String) -> Result<Vec<FieldPreview>, String> {
+    let secret = state.get_secret(&secret_id)?;
+
+    let fields: Vec<FieldPreview> = secret.fields
+        .into_iter()
+        .map(|(name, value)| FieldPreview { name, value })
+        .collect();
+
+    Ok(fields)
 }
 
 /// 复制字段值到剪贴板

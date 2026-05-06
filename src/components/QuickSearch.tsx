@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { listen } from '@tauri-apps/api/event'
-import { Search, Copy, Check, X } from 'lucide-react'
+import { Search, Copy, Check, X, Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../stores/useStore'
 import { iconMap } from '../constants/icons'
 
@@ -13,6 +13,7 @@ interface FieldPreview {
 interface QuickSearchResult {
   id: string
   title: string
+  description: string
   icon: string
   fields: FieldPreview[]
 }
@@ -25,7 +26,9 @@ export default function QuickSearch() {
   const [isLoading, setIsLoading] = useState(false)
   const [clipboardMessage, setClipboardMessage] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const settings = useStore((s) => s.settings)
+  const { settings, updateSettings } = useStore()
+
+  const showPlaintext = settings.quickSearchShowPlaintext
 
   const handleClose = useCallback(() => {
     setIsOpen(false)
@@ -41,6 +44,10 @@ export default function QuickSearch() {
     setCopiedField(null)
     setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
+
+  const togglePlaintext = useCallback(() => {
+    updateSettings({ quickSearchShowPlaintext: !showPlaintext })
+  }, [showPlaintext, updateSettings])
 
   // Listen for global shortcut event
   useEffect(() => {
@@ -65,7 +72,7 @@ export default function QuickSearch() {
     }
   }, [])
 
-  // Search when query changes
+  // Search when query or showPlaintext changes
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
@@ -75,7 +82,10 @@ export default function QuickSearch() {
     const timer = setTimeout(async () => {
       setIsLoading(true)
       try {
-        const res = await invoke<QuickSearchResult[]>('search_secrets_quick', { query: query.trim() })
+        const res = await invoke<QuickSearchResult[]>('search_secrets_quick', {
+          query: query.trim(),
+          showPlaintext: showPlaintext
+        })
         setResults(res)
       } catch (err) {
         console.error('Search failed:', err)
@@ -85,7 +95,7 @@ export default function QuickSearch() {
     }, 200)
 
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, showPlaintext])
 
   const handleCopy = async (secretId: string, fieldName: string) => {
     try {
@@ -114,6 +124,16 @@ export default function QuickSearch() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, handleClose])
 
+  // Get shortcut display text
+  const getShortcutDisplay = () => {
+    const shortcut = settings.quickSearchShortcut || 'CommandOrControl+Shift+P'
+    return shortcut
+      .replace('CommandOrControl', navigator.platform.includes('Mac') ? '⌘' : 'Ctrl')
+      .replace('+', ' + ')
+      .replace('Command', '⌘')
+      .replace('Control', 'Ctrl')
+  }
+
   if (!isOpen) return null
 
   return (
@@ -136,6 +156,17 @@ export default function QuickSearch() {
             placeholder="搜索密码条目..."
             className="flex-1 bg-transparent outline-none text-slate-900 dark:text-white placeholder-slate-400"
           />
+          <button
+            onClick={togglePlaintext}
+            className={`p-1.5 rounded-lg transition-colors ${
+              showPlaintext
+                ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400'
+            }`}
+            title={showPlaintext ? '隐藏明文' : '显示明文'}
+          >
+            {showPlaintext ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
           <button
             onClick={handleClose}
             className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -161,10 +192,15 @@ export default function QuickSearch() {
           {!isLoading && results.map((result) => (
             <div key={result.id} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0">
               <div className="px-4 py-3 flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50">
-                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getIconColor(result.icon)} flex items-center justify-center`}>
+                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getIconColor(result.icon)} flex items-center justify-center flex-shrink-0`}>
                   {getIcon(result.icon)}
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white">{result.title}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-slate-900 dark:text-white truncate">{result.title}</div>
+                  {result.description && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{result.description}</div>
+                  )}
+                </div>
               </div>
               <div className="px-2 py-1">
                 {result.fields.map((field) => (
@@ -175,7 +211,9 @@ export default function QuickSearch() {
                   >
                     <div className="text-left">
                       <div className="text-xs text-slate-500 dark:text-slate-400">{field.name}</div>
-                      <div className="text-sm text-slate-700 dark:text-slate-300 font-mono">{field.value}</div>
+                      <div className={`text-sm font-mono ${showPlaintext ? 'text-slate-700 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>
+                        {field.value}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {copiedField === `${result.id}-${field.name}` ? (
@@ -197,7 +235,7 @@ export default function QuickSearch() {
             <div className="p-8 text-center text-slate-500">
               <Search className="w-10 h-10 mx-auto mb-3 text-slate-300" />
               <p>输入关键词搜索密码条目</p>
-              <p className="text-xs mt-2">快捷键: Ctrl+Shift+P</p>
+              <p className="text-xs mt-2">快捷键: {getShortcutDisplay()}</p>
             </div>
           )}
         </div>
@@ -214,7 +252,16 @@ export default function QuickSearch() {
               )}
             </span>
           )}
-          <span className="text-xs text-slate-400">ESC 关闭</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePlaintext}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-violet-500 transition-colors"
+            >
+              {showPlaintext ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              <span>{showPlaintext ? '隐藏明文' : '显示明文'}</span>
+            </button>
+            <span className="text-xs text-slate-400">ESC 关闭</span>
+          </div>
         </div>
       </div>
     </div>
