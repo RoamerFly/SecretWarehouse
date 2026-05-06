@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { listen } from '@tauri-apps/api/event'
-import { appWindow } from '@tauri-apps/api/window'
+import { getCurrent } from '@tauri-apps/api/window'
 import { Search, Copy, Check, X, Eye, EyeOff } from 'lucide-react'
 import { useStore } from '../stores/useStore'
 import { iconMap } from '../constants/icons'
@@ -29,10 +29,12 @@ export default function QuickSearchWindow() {
   const settings = useStore((s) => s.settings)
 
   const handleClose = useCallback(async () => {
-    setQuery('')
-    setResults([])
-    setCopiedField(null)
-    await appWindow.hide()
+    try {
+      const win = getCurrent()
+      await win.hide()
+    } catch (err) {
+      console.error('Failed to hide window:', err)
+    }
   }, [])
 
   const handleFocusInput = useCallback(() => {
@@ -49,11 +51,11 @@ export default function QuickSearchWindow() {
         await invoke<number>('get_total_secrets_count')
         inputRef.current?.focus()
       } catch {
-        await appWindow.hide()
+        await handleClose()
       }
     }
     checkSession()
-  }, [])
+  }, [handleClose])
 
   // 监听 focus-input 事件
   useEffect(() => {
@@ -121,9 +123,14 @@ export default function QuickSearchWindow() {
   useEffect(() => {
     const unlisten = listen('tauri://blur', () => {
       setTimeout(async () => {
-        const focused = await appWindow.isFocused()
-        if (!focused) {
-          await handleClose()
+        try {
+          const win = getCurrent()
+          const focused = await win.isFocused()
+          if (!focused) {
+            await handleClose()
+          }
+        } catch (err) {
+          console.error('Blur handler error:', err)
         }
       }, 150)
     })
