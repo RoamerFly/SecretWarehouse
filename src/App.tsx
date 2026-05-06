@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { invoke } from '@tauri-apps/api/tauri'
 import { useStore } from './stores/useStore'
 import { ThemeProvider } from './components/ThemeProvider'
 import Sidebar from './components/Sidebar'
@@ -45,13 +46,29 @@ function AppContent() {
     fetchSecrets()
   }
 
+  const handleLogout = async () => {
+    // Clear encryption key from memory
+    await invoke('clear_encryption_key')
+    setCurrentUsername('')
+    setIsUnlocked(false)
+    initialized.current = false
+  }
+
+  const handleSwitchUser = async () => {
+    // Clear encryption key from memory and switch to login screen
+    await invoke('clear_encryption_key')
+    setCurrentUsername('')
+    setIsUnlocked(false)
+    initialized.current = false
+  }
+
   if (!isUnlocked) {
     return <MasterPassword onUnlock={handleUnlock} />
   }
 
   return (
     <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-white" style={{ fontSize: `${settings.fontSize}px` }}>
-      <Sidebar username={currentUsername} />
+      <Sidebar username={currentUsername} onLogout={handleLogout} onSwitchUser={handleSwitchUser} />
       <div className="flex-1 flex flex-col overflow-hidden" style={{ gap: `${settings.spacing}px` }}>
         <SearchBar />
         <SecretList />

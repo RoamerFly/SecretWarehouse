@@ -1,27 +1,97 @@
 import { useStore } from '../stores/useStore'
-import { Plus, Star, Layers, Settings, Lock, Database, Loader2, User } from 'lucide-react'
-import { useState } from 'react'
+import { Plus, Star, Layers, Settings, Lock, Database, Loader2, User, LogOut, RefreshCw, X, ShieldCheck } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 
 interface SidebarProps {
   username?: string
+  onLogout?: () => void
+  onSwitchUser?: () => void
 }
 
-export default function Sidebar({ username }: SidebarProps) {
+export default function Sidebar({ username, onLogout, onSwitchUser }: SidebarProps) {
   const { allTags, tagCounts, selectedTag, selectTag, setShowForm, setShowSettings, secrets, generateTestData } = useStore()
   const [isGenerating, setIsGenerating] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showTestDialog, setShowTestDialog] = useState(false)
+  const [testCount, setTestCount] = useState(10)
+  const [showPasswordCheck, setShowPasswordCheck] = useState(false)
+  const [passwordResults, setPasswordResults] = useState<{ title: string; field: string; strength: string }[]>([])
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const allCount = secrets.length
   const favoriteCount = secrets.filter(s => s.favorite).length
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleGenerateTestData = async () => {
     setIsGenerating(true)
     try {
-      const count = await generateTestData()
+      const count = await generateTestData(testCount)
       console.log(`Generated ${count} test entries`)
     } catch (err) {
       console.error('Failed to generate test data:', err)
     } finally {
       setIsGenerating(false)
+      setShowTestDialog(false)
+    }
+  }
+
+  const handleCheckPasswords = () => {
+    const results: { title: string; field: string; strength: string }[] = []
+
+    secrets.forEach(secret => {
+      Object.entries(secret.fields).forEach(([key, value]) => {
+        // Match fields containing "密码" (password)
+        if (key.toLowerCase().includes('密码') || key.toLowerCase().includes('password')) {
+          const strength = calculatePasswordStrength(value)
+          results.push({ title: secret.title, field: key, strength })
+        }
+      })
+    })
+
+    setPasswordResults(results)
+    setShowPasswordCheck(true)
+  }
+
+  const calculatePasswordStrength = (password: string): string => {
+    if (!password) return '无密码'
+
+    let score = 0
+
+    // Length scoring
+    if (password.length >= 8) score++
+    if (password.length >= 12) score++
+    if (password.length >= 16) score++
+
+    // Character variety
+    if (/[a-z]/.test(password)) score++
+    if (/[A-Z]/.test(password)) score++
+    if (/[0-9]/.test(password)) score++
+    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) score++
+
+    // Determine strength
+    if (score <= 2) return '弱'
+    if (score <= 4) return '中'
+    if (score <= 6) return '强'
+    return '非常强'
+  }
+
+  const getStrengthColor = (strength: string) => {
+    switch (strength) {
+      case '弱': return 'text-red-500 bg-red-50 dark:bg-red-900/20'
+      case '中': return 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+      case '强': return 'text-green-500 bg-green-50 dark:bg-green-900/20'
+      case '非常强': return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+      default: return 'text-gray-500 bg-gray-50 dark:bg-gray-900/20'
     }
   }
 
@@ -30,11 +100,38 @@ export default function Sidebar({ username }: SidebarProps) {
       {/* Logo */}
       <div className="p-5 border-b border-slate-200 dark:border-slate-700/40">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center hover:scale-105 transition-transform"
+            >
               <Lock className="w-5 h-5 text-white" />
-            </div>
+            </button>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white dark:border-slate-900" />
+
+            {/* User Menu Dropdown */}
+            {showUserMenu && (
+              <div className="absolute left-0 top-12 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
+                {onLogout && (
+                  <button
+                    onClick={() => { setShowUserMenu(false); onLogout() }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>退出登录</span>
+                  </button>
+                )}
+                {onSwitchUser && (
+                  <button
+                    onClick={() => { setShowUserMenu(false); onSwitchUser() }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>切换用户</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-slate-900 dark:text-white">SecretWarehouse</h1>
@@ -60,7 +157,7 @@ export default function Sidebar({ username }: SidebarProps) {
           <span>新增条目</span>
         </button>
         <button
-          onClick={handleGenerateTestData}
+          onClick={() => setShowTestDialog(true)}
           disabled={isGenerating}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
         >
@@ -70,6 +167,13 @@ export default function Sidebar({ username }: SidebarProps) {
             <Database className="w-4 h-4" />
           )}
           <span>{isGenerating ? '生成中...' : '生成测试数据'}</span>
+        </button>
+        <button
+          onClick={handleCheckPasswords}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors"
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>密码强度检测</span>
         </button>
       </div>
 
@@ -154,6 +258,94 @@ export default function Sidebar({ username }: SidebarProps) {
           <span>设置</span>
         </button>
       </div>
+
+      {/* Test Data Generation Dialog */}
+      {showTestDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-80 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">生成测试数据</h3>
+              <button onClick={() => setShowTestDialog(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                生成数量
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={testCount}
+                onChange={(e) => setTestCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                className="w-full px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-slate-500">范围: 1-100</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowTestDialog(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleGenerateTestData}
+                disabled={isGenerating}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {isGenerating ? '生成中...' : '确定'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Strength Check Dialog */}
+      {showPasswordCheck && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-96 max-h-[80vh] shadow-xl flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">密码强度检测</h3>
+              <button onClick={() => setShowPasswordCheck(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {passwordResults.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 text-center py-8">未找到包含密码字段的条目</p>
+            ) : (
+              <div className="overflow-y-auto flex-1">
+                <div className="space-y-2">
+                  {passwordResults.map((result, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-700/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{result.title}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{result.field}</p>
+                      </div>
+                      <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${getStrengthColor(result.strength)}`}>
+                        {result.strength}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-500">总计</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{passwordResults.length} 个密码字段</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setShowPasswordCheck(false)}
+              className="mt-4 w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

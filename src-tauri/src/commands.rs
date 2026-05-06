@@ -127,7 +127,7 @@ pub fn generate_password(
 }
 
 #[tauri::command]
-pub fn generate_test_data(state: State<'_, DbState>) -> Result<i32, String> {
+pub fn generate_test_data(state: State<'_, DbState>, count: i32) -> Result<i32, String> {
     use rand::seq::SliceRandom;
 
     let mut rng = rand::thread_rng();
@@ -164,9 +164,10 @@ pub fn generate_test_data(state: State<'_, DbState>) -> Result<i32, String> {
     let user_names = ["admin", "user", "test", "demo", "root", "dev", "guest", "john", "mary", "alex"];
     let domains = ["gmail.com", "qq.com", "163.com", "outlook.com", "hotmail.com", "company.com"];
 
-    let mut count = 0;
+    let mut generated = 0;
+    let count = count.clamp(1, 100);
 
-    for i in 0..100 {
+    for i in 0..count {
         let title = titles.choose(&mut rng).unwrap().to_string();
         let title = format!("{} {}", title, i + 1);
 
@@ -233,11 +234,11 @@ pub fn generate_test_data(state: State<'_, DbState>) -> Result<i32, String> {
         };
 
         if state.create_secret(req).is_ok() {
-            count += 1;
+            generated += 1;
         }
     }
 
-    Ok(count)
+    Ok(generated)
 }
 
 #[tauri::command]

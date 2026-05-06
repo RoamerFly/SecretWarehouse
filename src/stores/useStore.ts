@@ -84,7 +84,7 @@ interface AppState {
   setShowForm: (show: boolean) => void
   setEditingSecret: (secret: SecretEntry | null) => void
   generatePassword: (length?: number) => Promise<string>
-  generateTestData: () => Promise<number>
+  generateTestData: (count?: number) => Promise<number>
 
   // Multi-select actions
   toggleSelection: (id: string) => void
@@ -291,13 +291,13 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  generateTestData: async () => {
+  generateTestData: async (count = 10) => {
     set({ isLoading: true, error: null })
     try {
-      const count = await invoke<number>('generate_test_data')
+      const generated = await invoke<number>('generate_test_data', { count })
       await get().fetchSecrets()
       set({ isLoading: false })
-      return count
+      return generated
     } catch (err) {
       set({ error: String(err), isLoading: false })
       throw err
