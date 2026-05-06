@@ -66,7 +66,6 @@ export default function SecretList() {
 
     if (passwordCheckMode) {
       // Password check mode: items with detection first, then without
-      // Within each group, sort by strength (weak first) for detected, by sort settings for undetected
       const withDetection: SecretEntry[] = []
       const withoutDetection: SecretEntry[] = []
 
@@ -78,11 +77,14 @@ export default function SecretList() {
         }
       })
 
-      // Sort detected items by strength (weak first)
+      // Sort detected items: first by strength (weak first), then by user's sort settings
       withDetection.sort((a, b) => {
         const strengthA = passwordStrengthMap.get(a.id)!
         const strengthB = passwordStrengthMap.get(b.id)!
-        return getStrengthPriority(strengthA) - getStrengthPriority(strengthB)
+        const strengthDiff = getStrengthPriority(strengthA) - getStrengthPriority(strengthB)
+        if (strengthDiff !== 0) return strengthDiff
+        // Same strength, sort by user's settings
+        return compareBySortSettings(a, b)
       })
 
       // Sort undetected items by normal sort settings
