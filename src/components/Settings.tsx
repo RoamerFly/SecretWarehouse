@@ -3,7 +3,7 @@ import { useStore } from '../stores/useStore'
 import { useTheme } from './ThemeProvider'
 import {
   X, Sun, Moon, Monitor, Type, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key,
-  Database, Download, Upload, Palette, AlignLeft, Grid3X3, Archive, ShieldCheck, Plus
+  Database, Download, Upload, Palette, AlignLeft, Grid3X3, Archive, ShieldCheck, Plus, PanelBottom
 } from 'lucide-react'
 import { appWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/tauri'
@@ -680,6 +680,47 @@ export default function Settings({ username }: SettingsProps) {
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
                   修改后需重启应用生效
                 </p>
+              </div>
+            </div>
+
+            {/* 托盘 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={PanelBottom} title="系统托盘" />
+
+              {/* Close to Tray */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-700 dark:text-slate-300">关闭时最小化到托盘</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">点击关闭按钮时隐藏到系统托盘而非退出</div>
+                </div>
+                <button
+                  onClick={() => handleUpdateSettings({ closeToTray: !settings.closeToTray })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    settings.closeToTray ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    settings.closeToTray ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Start Minimized */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-700 dark:text-slate-300">启动时最小化到托盘</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">应用启动后自动隐藏到系统托盘</div>
+                </div>
+                <button
+                  onClick={() => handleUpdateSettings({ startMinimized: !settings.startMinimized })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    settings.startMinimized ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    settings.startMinimized ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
               </div>
             </div>
 

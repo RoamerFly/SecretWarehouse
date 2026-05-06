@@ -138,15 +138,15 @@ export default function QuickSearch() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-32 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
       onClick={handleClose}
     >
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-[500px] max-h-[70vh] overflow-hidden animate-in slide-in-from-top-4 duration-150"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-[480px] max-h-[60vh] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
         onClick={e => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 p-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 p-3 border-b border-slate-200 dark:border-slate-700">
           <Search className="w-5 h-5 text-slate-400" />
           <input
             ref={inputRef}
@@ -176,15 +176,15 @@ export default function QuickSearch() {
         </div>
 
         {/* Results */}
-        <div className="overflow-y-auto max-h-[50vh]">
+        <div className="overflow-y-auto max-h-[40vh]">
           {isLoading && (
-            <div className="p-8 text-center">
+            <div className="p-6 text-center">
               <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
           )}
 
           {!isLoading && query && results.length === 0 && (
-            <div className="p-8 text-center text-slate-500">
+            <div className="p-6 text-center text-slate-500">
               未找到匹配的条目
             </div>
           )}
@@ -202,12 +202,12 @@ export default function QuickSearch() {
                   )}
                 </div>
               </div>
-              <div className="px-2 py-1">
+              <div className="px-2 py-0.5">
                 {result.fields.map((field) => (
                   <button
                     key={field.name}
                     onClick={() => handleCopy(result.id, field.name)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors group"
+                    className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors group"
                   >
                     <div className="text-left">
                       <div className="text-xs text-slate-500 dark:text-slate-400">{field.name}</div>
@@ -232,16 +232,16 @@ export default function QuickSearch() {
           ))}
 
           {!query && !isLoading && (
-            <div className="p-8 text-center text-slate-500">
-              <Search className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-              <p>输入关键词搜索密码条目</p>
-              <p className="text-xs mt-2">快捷键: {getShortcutDisplay()}</p>
+            <div className="p-6 text-center text-slate-500">
+              <Search className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm">输入关键词搜索密码条目</p>
+              <p className="text-xs mt-1">快捷键: {getShortcutDisplay()}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
           {clipboardMessage ? (
             <span className="text-xs text-amber-500">{clipboardMessage}</span>
           ) : (

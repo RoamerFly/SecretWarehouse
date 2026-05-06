@@ -19,6 +19,8 @@ interface AppSettings {
   clipboardClearSeconds: number  // 剪贴板自动清除秒数 (0=不自动清除)
   quickSearchShortcut: string  // 快速搜索快捷键
   quickSearchShowPlaintext: boolean  // 快速搜索是否显示明文
+  closeToTray: boolean  // 关闭时最小化到托盘
+  startMinimized: boolean  // 启动时最小化到托盘
 }
 
 const defaultSettings: AppSettings = {
@@ -35,6 +37,8 @@ const defaultSettings: AppSettings = {
   clipboardClearSeconds: 30,
   quickSearchShortcut: 'CommandOrControl+Shift+P',
   quickSearchShowPlaintext: false,
+  closeToTray: true,
+  startMinimized: false,
 }
 
 // Load settings from localStorage

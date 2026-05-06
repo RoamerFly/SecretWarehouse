@@ -24,7 +24,9 @@ fn main() {
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(CustomMenuItem::new("quit", "退出"));
 
-    let system_tray = SystemTray::new().with_menu(tray_menu);
+    let system_tray = SystemTray::new()
+        .with_menu(tray_menu)
+        .with_tooltip("SecretWarehouse - 安全密码管理器");
 
     tauri::Builder::default()
         .manage(db_state)
