@@ -645,6 +645,18 @@ export default function Settings({ username }: SettingsProps) {
                   </button>
                 </div>
               </div>
+
+              {/* Clipboard Clear Seconds */}
+              <SliderWithInput
+                label="剪贴板自动清除"
+                value={settings.clipboardClearSeconds}
+                min={0}
+                max={120}
+                step={5}
+                unit="秒 (0=不自动清除)"
+                icon={<Database className="w-4 h-4 text-slate-400" />}
+                onChange={(value) => handleUpdateSettings({ clipboardClearSeconds: value })}
+              />
             </div>
 
             {/* 数据 Section */}

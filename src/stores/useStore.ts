@@ -16,6 +16,7 @@ interface AppSettings {
   sortField: SortField  // 排序字段
   sortDirection: SortDirection  // 排序方向
   passwordCheckMode: boolean  // 密码强度检测开关
+  clipboardClearSeconds: number  // 剪贴板自动清除秒数 (0=不自动清除)
 }
 
 const defaultSettings: AppSettings = {
@@ -29,6 +30,7 @@ const defaultSettings: AppSettings = {
   sortField: 'updated_at',
   sortDirection: 'desc',
   passwordCheckMode: false,
+  clipboardClearSeconds: 30,
 }
 
 // Load settings from localStorage

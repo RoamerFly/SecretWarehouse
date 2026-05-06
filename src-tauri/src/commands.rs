@@ -602,3 +602,100 @@ pub fn import_user_data(state: State<'_, DbState>, username: String, zip_path: S
 
     Ok(format!("成功导入 {} 个文件", files_imported))
 }
+
+// ============ 快速搜索相关命令 ============
+
+/// 快速搜索结果的精简结构
+#[derive(serde::Serialize)]
+pub struct QuickSearchResult {
+    pub id: String,
+    pub title: String,
+    pub icon: String,
+    pub fields: Vec<FieldPreview>,
+}
+
+#[derive(serde::Serialize)]
+pub struct FieldPreview {
+    pub name: String,
+    pub value: String,
+}
+
+/// 快速搜索密码条目（用于全局快捷键弹窗）
+#[tauri::command]
+pub fn search_secrets_quick(state: State<'_, DbState>, query: String) -> Result<Vec<QuickSearchResult>, String> {
+    let secrets = state.search_secrets(&query)?;
+
+    let results: Vec<QuickSearchResult> = secrets
+        .into_iter()
+        .map(|s| {
+            // 解密字段
+            let mut fields: Vec<FieldPreview> = Vec::new();
+            if let Some(master_key) = crypto::get_encryption_key() {
+                if let Ok(decrypted) = crypto::decrypt_fields(&s.encrypted_fields, &master_key) {
+                    for (name, _) in decrypted {
+                        fields.push(FieldPreview {
+                            name: name.clone(),
+                            value: "***".to_string(), // 隐藏实际值
+                        });
+                    }
+                }
+            }
+
+            QuickSearchResult {
+                id: s.id,
+                title: s.title,
+                icon: s.icon,
+                fields,
+            }
+        })
+        .collect();
+
+    Ok(results)
+}
+
+/// 复制字段值到剪贴板
+#[tauri::command]
+pub fn copy_field_to_clipboard(
+    state: State<'_, DbState>,
+    app_handle: tauri::AppHandle,
+    secret_id: String,
+    field_name: String,
+    clear_seconds: u64,
+) -> Result<String, String> {
+    // 获取条目
+    let secret = state.get_secret(&secret_id)?;
+
+    // 解密字段
+    let master_key = crypto::get_encryption_key()
+        .ok_or_else(|| "未解锁，请先输入密码".to_string())?;
+
+    let decrypted = crypto::decrypt_fields(&secret.encrypted_fields, &master_key)?;
+
+    // 获取字段值
+    let value = decrypted.get(&field_name)
+        .ok_or_else(|| format!("字段 '{}' 不存在", field_name))?;
+
+    // 复制到剪贴板
+    use arboard::Clipboard;
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| format!("无法访问剪贴板: {}", e))?;
+
+    clipboard.set_text(value)
+        .map_err(|e| format!("复制失败: {}", e))?;
+
+    // 如果设置了清除时间，启动定时器
+    if clear_seconds > 0 {
+        let app_handle_clone = app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(clear_seconds));
+            // 清除剪贴板
+            if let Ok(mut clipboard) = Clipboard::new() {
+                let _ = clipboard.set_text("");
+                // 发送事件通知前端
+                let _ = app_handle_clone.emit_all("clipboard-cleared", ());
+            }
+        });
+    }
+
+    Ok(format!("已复制 '{}'", field_name))
+}

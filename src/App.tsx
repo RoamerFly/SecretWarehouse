@@ -11,6 +11,7 @@ import TemplateList from './components/TemplateList'
 import TemplateForm from './components/TemplateForm'
 import Settings from './components/Settings'
 import MasterPassword from './components/MasterPassword'
+import QuickSearch from './components/QuickSearch'
 
 function AppContent() {
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -78,6 +79,7 @@ function AppContent() {
       {showTemplates && <TemplateList onSelectTemplate={handleSelectTemplate} />}
       {showTemplateForm && <TemplateForm />}
       {showSettings && <Settings username={currentUsername} />}
+      <QuickSearch />
     </div>
   )
 }

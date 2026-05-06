@@ -25,6 +25,9 @@
       "shell": {
         "all": false,
         "open": true
+      },
+      "globalShortcut": {
+        "all": true
       }
     },
     "bundle": {
@@ -38,6 +41,10 @@
     },
     "security": {
       "csp": null
+    },
+    "systemTray": {
+      "iconPath": "icons/SecretWarehouse.png",
+      "iconAsTemplate": true
     },
     "windows": [
       {
