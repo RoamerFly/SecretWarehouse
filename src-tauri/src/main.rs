@@ -11,8 +11,40 @@ mod models;
 use db::DbState;
 use tauri::{
     CustomMenuItem, GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
-    SystemTrayMenuItem,
+    SystemTrayMenuItem, WindowBuilder, WindowUrl,
 };
+
+fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::Window> {
+    let url = if cfg!(debug_assertions) {
+        WindowUrl::External("http://localhost:1420#quick-search".parse().unwrap())
+    } else {
+        WindowUrl::App("index.html#quick-search".into())
+    };
+
+    WindowBuilder::new(app, "quick-search", url)
+        .title("快速搜索")
+        .inner_size(480.0, 400.0)
+        .resizable(false)
+        .decorations(false)
+        .always_on_top(true)
+        .transparent(false)
+        .skip_taskbar(true)
+        .center()
+        .build()
+}
+
+fn show_quick_search_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_window("quick-search") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("focus-input", ());
+    } else {
+        // 窗口不存在，重新创建
+        if let Err(e) = create_quick_search_window(app) {
+            eprintln!("Failed to create quick search window: {}", e);
+        }
+    }
+}
 
 fn main() {
     let db_state = DbState::new().expect("数据库初始化失败");
@@ -42,12 +74,8 @@ fn main() {
                             }
                         }
                         "quick_search" => {
-                            // 触发快速搜索弹窗
-                            if let Some(window) = app.get_window("main") {
-                                window.show().unwrap();
-                                window.set_focus().unwrap();
-                                let _ = window.emit("show-quick-search", ());
-                            }
+                            // 只显示快速搜索窗口，不显示主窗口
+                            show_quick_search_window(app);
                         }
                         "quit" => {
                             std::process::exit(0);
@@ -66,15 +94,15 @@ fn main() {
             }
         })
         .setup(|app| {
+            // 创建快速搜索窗口（初始隐藏）
+            create_quick_search_window(&app.handle())?;
+
             // 注册全局快捷键 Ctrl+Shift+P
             let app_handle = app.handle();
             app.global_shortcut_manager()
                 .register("CommandOrControl+Shift+P", move || {
-                    if let Some(window) = app_handle.get_window("main") {
-                        window.show().unwrap();
-                        window.set_focus().unwrap();
-                        let _ = window.emit("show-quick-search", ());
-                    }
+                    // 只显示快速搜索窗口，不显示主窗口
+                    show_quick_search_window(&app_handle);
                 })?;
 
             // 窗口关闭时隐藏到托盘而不是退出

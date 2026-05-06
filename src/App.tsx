@@ -12,6 +12,10 @@ import TemplateForm from './components/TemplateForm'
 import Settings from './components/Settings'
 import MasterPassword from './components/MasterPassword'
 import QuickSearch from './components/QuickSearch'
+import QuickSearchWindow from './components/QuickSearchWindow'
+
+// 检查是否是快速搜索独立窗口模式
+const isQuickSearchWindow = window.location.hash === '#quick-search'
 
 function AppContent() {
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -85,6 +89,15 @@ function AppContent() {
 }
 
 function App() {
+  // 如果是快速搜索独立窗口，只渲染 QuickSearchWindow
+  if (isQuickSearchWindow) {
+    return (
+      <ThemeProvider>
+        <QuickSearchWindow />
+      </ThemeProvider>
+    )
+  }
+
   return (
     <ThemeProvider>
       <AppContent />
