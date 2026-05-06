@@ -118,14 +118,21 @@ export default function Sidebar({ username, onLogout, onSwitchUser }: SidebarPro
         </button>
         <button
           onClick={() => setPasswordCheckMode(!passwordCheckMode)}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+          className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
             passwordCheckMode
-              ? 'bg-violet-600 hover:bg-violet-500 text-white'
-              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+              ? 'bg-green-500 hover:bg-green-400 text-white'
+              : 'bg-red-500 hover:bg-red-400 text-white'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>密码强度检测 {passwordCheckMode ? 'ON' : 'OFF'}</span>
+          <span>密码强度检测</span>
+          <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${
+            passwordCheckMode
+              ? 'bg-green-600 text-green-100'
+              : 'bg-red-600 text-red-100'
+          }`}>
+            {passwordCheckMode ? 'ON' : 'OFF'}
+          </span>
         </button>
       </div>
 

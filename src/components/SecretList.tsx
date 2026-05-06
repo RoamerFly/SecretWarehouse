@@ -38,50 +38,62 @@ export default function SecretList() {
     return map
   }, [secrets, passwordCheckMode, settings.passwordCheckKeywords])
 
+  // Helper function to compare by sort settings
+  const compareBySortSettings = (a: SecretEntry, b: SecretEntry) => {
+    const { sortField, sortDirection } = settings
+    const multiplier = sortDirection === 'asc' ? 1 : -1
+    let comparison = 0
+    switch (sortField) {
+      case 'updated_at':
+        comparison = a.updated_at - b.updated_at
+        break
+      case 'created_at':
+        comparison = a.created_at - b.created_at
+        break
+      case 'title':
+        comparison = a.title.localeCompare(b.title, 'zh-CN')
+        break
+      case 'fields_count':
+        comparison = Object.keys(a.fields).length - Object.keys(b.fields).length
+        break
+    }
+    return comparison * multiplier
+  }
+
   // Sort secrets
   const filteredSecrets = useMemo(() => {
     const sorted = [...secrets]
 
     if (passwordCheckMode) {
-      // Password check mode: sort by strength (weak first)
-      sorted.sort((a, b) => {
-        const strengthA = passwordStrengthMap.get(a.id)
-        const strengthB = passwordStrengthMap.get(b.id)
+      // Password check mode: items with detection first, then without
+      // Within each group, sort by strength (weak first) for detected, by sort settings for undetected
+      const withDetection: SecretEntry[] = []
+      const withoutDetection: SecretEntry[] = []
 
-        // Items without passwords go to the end
-        if (!strengthA && !strengthB) return 0
-        if (!strengthA) return 1
-        if (!strengthB) return -1
+      sorted.forEach(secret => {
+        if (passwordStrengthMap.has(secret.id)) {
+          withDetection.push(secret)
+        } else {
+          withoutDetection.push(secret)
+        }
+      })
 
-        // Sort by strength priority (lower = weaker = comes first)
+      // Sort detected items by strength (weak first)
+      withDetection.sort((a, b) => {
+        const strengthA = passwordStrengthMap.get(a.id)!
+        const strengthB = passwordStrengthMap.get(b.id)!
         return getStrengthPriority(strengthA) - getStrengthPriority(strengthB)
       })
+
+      // Sort undetected items by normal sort settings
+      withoutDetection.sort(compareBySortSettings)
+
+      return [...withDetection, ...withoutDetection]
     } else {
       // Normal mode: sort by settings
-      const { sortField, sortDirection } = settings
-      const multiplier = sortDirection === 'asc' ? 1 : -1
-
-      sorted.sort((a, b) => {
-        let comparison = 0
-        switch (sortField) {
-          case 'updated_at':
-            comparison = a.updated_at - b.updated_at
-            break
-          case 'created_at':
-            comparison = a.created_at - b.created_at
-            break
-          case 'title':
-            comparison = a.title.localeCompare(b.title, 'zh-CN')
-            break
-          case 'fields_count':
-            comparison = Object.keys(a.fields).length - Object.keys(b.fields).length
-            break
-        }
-        return comparison * multiplier
-      })
+      sorted.sort(compareBySortSettings)
+      return sorted
     }
-
-    return sorted
   }, [secrets, passwordCheckMode, passwordStrengthMap, settings.sortField, settings.sortDirection])
 
   const handleDoubleClick = (secret: SecretEntry) => {
@@ -149,63 +161,61 @@ export default function SecretList() {
       )}
 
       {/* Sort toolbar */}
-      {!passwordCheckMode && (
-        <div className="px-6 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div className="relative">
-            <button
-              onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-              <span>{getSortLabel(settings.sortField)}</span>
-              {settings.sortDirection === 'asc' ? (
-                <ArrowUp className="w-3 h-3" />
-              ) : (
-                <ArrowDown className="w-3 h-3" />
-              )}
-            </button>
-            {showSortMenu && (
-              <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
-                {[
-                  { field: 'updated_at' as const, label: '更新时间' },
-                  { field: 'created_at' as const, label: '创建时间' },
-                  { field: 'title' as const, label: '标题名称' },
-                  { field: 'fields_count' as const, label: '字段个数' },
-                ].map(({ field, label }) => (
-                  <button
-                    key={field}
-                    onClick={() => {
-                      if (settings.sortField === field) {
-                        updateSettings({ sortDirection: settings.sortDirection === 'asc' ? 'desc' : 'asc' })
-                      } else {
-                        updateSettings({ sortField: field })
-                      }
-                      setShowSortMenu(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
-                      settings.sortField === field
-                        ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>{label}</span>
-                    {settings.sortField === field && (
-                      settings.sortDirection === 'asc' ? (
-                        <ArrowUp className="w-3 h-3" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3" />
-                      )
-                    )}
-                  </button>
-                ))}
-              </div>
+      <div className="px-6 py-2 bg-white/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div className="relative">
+          <button
+            onClick={() => setShowSortMenu(!showSortMenu)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            <span>{getSortLabel(settings.sortField)}</span>
+            {settings.sortDirection === 'asc' ? (
+              <ArrowUp className="w-3 h-3" />
+            ) : (
+              <ArrowDown className="w-3 h-3" />
             )}
-          </div>
-          <span className="text-xs text-slate-500">
-            {filteredSecrets.length} 个条目
-          </span>
+          </button>
+          {showSortMenu && (
+            <div className="absolute left-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-1 z-50">
+              {[
+                { field: 'updated_at' as const, label: '更新时间' },
+                { field: 'created_at' as const, label: '创建时间' },
+                { field: 'title' as const, label: '标题名称' },
+                { field: 'fields_count' as const, label: '字段个数' },
+              ].map(({ field, label }) => (
+                <button
+                  key={field}
+                  onClick={() => {
+                    if (settings.sortField === field) {
+                      updateSettings({ sortDirection: settings.sortDirection === 'asc' ? 'desc' : 'asc' })
+                    } else {
+                      updateSettings({ sortField: field })
+                    }
+                    setShowSortMenu(false)
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2 text-sm transition-colors ${
+                    settings.sortField === field
+                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20'
+                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>{label}</span>
+                  {settings.sortField === field && (
+                    settings.sortDirection === 'asc' ? (
+                      <ArrowUp className="w-3 h-3" />
+                    ) : (
+                      <ArrowDown className="w-3 h-3" />
+                    )
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        <span className="text-xs text-slate-500">
+          {filteredSecrets.length} 个条目
+        </span>
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6" style={{ minHeight: 0, height: '100%' }}>
