@@ -29,6 +29,7 @@ fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::Wi
         .always_on_top(true)
         .transparent(false)
         .skip_taskbar(true)
+        .visible(false)
         .center()
         .build()
 }
