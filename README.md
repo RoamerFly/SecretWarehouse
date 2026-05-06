@@ -56,6 +56,14 @@
 
 <div align="center">
 
+### 快速搜索
+![快速搜索](docs/images/quick-search.png)
+*全局快捷键呼出悬浮窗，快速查找并复制字段*
+
+</div>
+
+<div align="center">
+
 ### 密码强度检测
 ![密码强度检测](docs/images/password-check.png)
 *开启检测后自动扫描并显示密码强度，弱密码优先显示*
@@ -67,6 +75,14 @@
 ### 设置界面
 ![设置界面](docs/images/settings.png)
 *支持字体大小、卡片大小、间距、窗口尺寸等自定义设置*
+
+</div>
+
+<div align="center">
+
+### 深色模式
+![深色模式](docs/images/dark-mode.png)
+*支持浅色/深色/跟随系统三种模式*
 
 </div>
 
@@ -108,11 +124,11 @@
 | **标签分类** | 为条目添加标签，快速筛选 |
 | **收藏功能** | 标记重要条目，快速访问 |
 | **全文搜索** | 搜索标题、描述、标签、字段 |
-| **快速搜索弹窗** | 全局快捷键呼出小弹窗，快速查找并复制字段 |
+| **快速搜索悬浮窗** | 全局快捷键呼出独立小窗口，不显示主界面，快速查找并复制 |
 | **模板系统** | 保存常用模板，快速创建 |
 | **批量操作** | 多选、全选、批量删除 |
 | **深色模式** | 浅色/深色/跟随系统 |
-| **系统托盘** | 后台运行，托盘图标快速访问 |
+| **系统托盘** | 后台运行，托盘图标快速访问，点击即可打开快速搜索 |
 | **数据导入导出** | 备份和恢复数据库 |
 | **用户数据迁移** | ZIP打包导出/导入，含密钥文件 |
 | **恢复码机制** | 忘记密码时可恢复数据 |
@@ -246,6 +262,17 @@ data/
 
 ---
 
+## ⌨️ 快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl/Cmd + Shift + P` | 打开快速搜索悬浮窗 |
+| `ESC` | 关闭弹窗/取消操作 |
+
+> 快捷键可在设置中自定义
+
+---
+
 ## 📦 环境配置
 
 ### 前置要求
@@ -297,20 +324,24 @@ npm run tauri dev
 
 ```
 SecretWarehouse/
-├── src/                    # 前端 (React + TypeScript)
-│   ├── components/         # 组件
+├── src/                        # 前端 (React + TypeScript)
+│   ├── components/             # 组件
 │   │   ├── MasterPassword.tsx  # 登录/注册界面
 │   │   ├── Sidebar.tsx         # 侧边栏
+│   │   ├── SecretList.tsx      # 卡片列表
+│   │   ├── QuickSearch.tsx     # 主窗口搜索弹窗
+│   │   ├── QuickSearchWindow.tsx # 独立快速搜索窗口
+│   │   ├── Settings.tsx        # 设置界面
 │   │   └── ...
-│   └── stores/             # 状态管理 (Zustand)
-├── src-tauri/              # 后端 (Rust)
+│   └── stores/                 # 状态管理 (Zustand)
+├── src-tauri/                  # 后端 (Rust)
 │   └── src/
-│       ├── crypto.rs       # 加密模块
-│       ├── db.rs           # 数据库
-│       ├── commands.rs     # Tauri命令
-│       └── models.rs       # 数据模型
-└── data/                   # 运行时数据 (不提交)
-    └── {username}/         # 用户数据目录
+│       ├── crypto.rs           # 加密模块
+│       ├── db.rs               # 数据库
+│       ├── commands.rs         # Tauri命令
+│       └── models.rs           # 数据模型
+└── data/                       # 运行时数据 (不提交)
+    └── {username}/             # 用户数据目录
         ├── data_{username}.db
         ├── salt.key
         ├── master.key
@@ -340,7 +371,7 @@ SecretWarehouse/
 - [x] 设置持久化
 - [x] 深色模式
 - [x] 批量操作（多选、全选、删除）
-- [x] 快速搜索弹窗（全局快捷键，小窗口悬浮）
+- [x] 快速搜索悬浮窗（全局快捷键，独立小窗口）
 - [x] 系统托盘（后台运行，快捷访问）
 - [x] 剪贴板自动清除（可设置秒数）
 
