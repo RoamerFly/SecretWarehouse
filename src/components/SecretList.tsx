@@ -309,7 +309,7 @@ function SecretCard({ secret, index, isSelected, isSelectionMode, onDoubleClick,
     >
       {/* Password Strength Badge */}
       {passwordStrength && (
-        <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-semibold ${getStrengthColor(passwordStrength)}`}>
+        <div className={`absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-xs font-semibold ${getStrengthColor(passwordStrength)}`}>
           {passwordStrength}
         </div>
       )}
