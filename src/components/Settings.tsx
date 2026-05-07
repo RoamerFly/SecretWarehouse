@@ -153,64 +153,73 @@ interface PositionPickerProps {
 
 function FullScreenPositionPicker({ x, y, screenWidth, screenHeight, onChange, onClose }: PositionPickerProps) {
   const [position, setPosition] = useState({ x, y })
-  const [isDragging, setIsDragging] = useState(false)
+  const positionRef = useRef({ x, y })
+  const rafRef = useRef<number | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return
-
-    // Scale mouse position to screen coordinates
+  // Calculate position from mouse event
+  const calculatePosition = useCallback((clientX: number, clientY: number) => {
     const scaleX = screenWidth / window.innerWidth
     const scaleY = screenHeight / window.innerHeight
 
-    const newX = Math.round(e.clientX * scaleX - 240)  // Center window on cursor
-    const newY = Math.round(e.clientY * scaleY - 200)
+    const newX = Math.round(clientX * scaleX - 240)
+    const newY = Math.round(clientY * scaleY - 200)
 
-    // Clamp values
-    const clampedX = Math.max(0, Math.min(screenWidth - 480, newX))
-    const clampedY = Math.max(0, Math.min(screenHeight - 400, newY))
-
-    setPosition({ x: clampedX, y: clampedY })
-  }, [isDragging, screenWidth, screenHeight])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
+    return {
+      x: Math.max(0, Math.min(screenWidth - 480, newX)),
+      y: Math.max(0, Math.min(screenHeight - 400, newY))
     }
-    return () => {
+  }, [screenWidth, screenHeight])
+
+  // Handle mouse move with RAF for smooth updates
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    e.preventDefault()
+    const newPos = calculatePosition(e.clientX, e.clientY)
+    positionRef.current = newPos
+
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(() => {
+        setPosition(positionRef.current)
+        rafRef.current = null
+      })
+    }
+  }, [calculatePosition])
+
+  // Start dragging on mousedown
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const newPos = calculatePosition(e.clientX, e.clientY)
+    positionRef.current = newPos
+    setPosition(newPos)
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', () => {
       window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+    }, { once: true })
+  }, [calculatePosition, handleMouseMove])
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current)
+      }
     }
-  }, [isDragging, handleMouseMove, handleMouseUp])
+  }, [])
 
   const handleConfirm = () => {
     onChange(position.x, position.y)
     onClose()
   }
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isDragging) return
-
-    const scaleX = screenWidth / window.innerWidth
-    const scaleY = screenHeight / window.innerHeight
-
-    const newX = Math.round(e.clientX * scaleX - 240)
-    const newY = Math.round(e.clientY * scaleY - 200)
-
-    const clampedX = Math.max(0, Math.min(screenWidth - 480, newX))
-    const clampedY = Math.max(0, Math.min(screenHeight - 400, newY))
-
-    setPosition({ x: clampedX, y: clampedY })
-  }
-
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 cursor-crosshair" onClick={handleClick}>
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[100] bg-black/80 cursor-crosshair"
+      onMouseDown={handleMouseDown}
+    >
       {/* Instructions */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-6 py-3 rounded-full shadow-lg">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 px-6 py-3 rounded-full shadow-lg pointer-events-none">
         <p className="text-sm text-slate-700 dark:text-slate-300">
           点击或拖动选择位置，然后点击确认
         </p>
@@ -224,6 +233,7 @@ function FullScreenPositionPicker({ x, y, screenWidth, screenHeight, onChange, o
           top: `${(position.y / screenHeight) * 100}%`,
           width: '480px',
           height: '400px',
+          willChange: 'left, top',
         }}
       >
         <div className="flex items-center justify-center h-full">
@@ -236,7 +246,7 @@ function FullScreenPositionPicker({ x, y, screenWidth, screenHeight, onChange, o
       </div>
 
       {/* Bottom controls */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 pointer-events-auto">
         <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-lg shadow-lg">
           <span className="text-sm text-slate-600 dark:text-slate-400">
             X: <span className="font-mono text-violet-600">{position.x}</span>, Y: <span className="font-mono text-violet-600">{position.y}</span>
@@ -247,6 +257,7 @@ function FullScreenPositionPicker({ x, y, screenWidth, screenHeight, onChange, o
             e.stopPropagation()
             handleConfirm()
           }}
+          onMouseDown={(e) => e.stopPropagation()}
           className="flex items-center gap-2 px-6 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg shadow-lg transition-colors"
         >
           <CheckCircle className="w-5 h-5" />
@@ -257,6 +268,7 @@ function FullScreenPositionPicker({ x, y, screenWidth, screenHeight, onChange, o
             e.stopPropagation()
             onClose()
           }}
+          onMouseDown={(e) => e.stopPropagation()}
           className="flex items-center gap-2 px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg shadow-lg transition-colors"
         >
           <X className="w-5 h-5" />
