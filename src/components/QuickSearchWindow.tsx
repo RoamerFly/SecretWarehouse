@@ -76,7 +76,7 @@ export default function QuickSearchWindow() {
     const settings = getSettings()
     setClipboardSeconds(settings.clipboardClearSeconds || 30)
 
-    // 检查会话并设置位置
+    // 检查会话并设置初始位置（仅首次）
     const init = async () => {
       try {
         await invoke('get_total_secrets_count')
@@ -88,18 +88,13 @@ export default function QuickSearchWindow() {
     }
     init()
 
-    // 监听 focus-input 事件
+    // 监听 focus-input 事件（每次显示都重置位置到设置的位置）
     const unlistenFocus = listen('focus-input', async () => {
       setQuery('')
       setResults([])
       setCopiedField(null)
       await setWindowPosition()
       setTimeout(() => inputRef.current?.focus(), 50)
-    })
-
-    // 监听失去焦点
-    const unlistenBlur = listen('tauri://blur', () => {
-      setTimeout(() => hideWindow(), 200)
     })
 
     // 键盘事件
@@ -114,7 +109,6 @@ export default function QuickSearchWindow() {
 
     return () => {
       unlistenFocus.then(fn => fn())
-      unlistenBlur.then(fn => fn())
       document.removeEventListener('keydown', handleKey, true)
     }
   }, [setWindowPosition, hideWindow])
