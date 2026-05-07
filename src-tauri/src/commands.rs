@@ -724,7 +724,8 @@ pub fn check_active_session() -> bool {
 #[tauri::command]
 pub fn set_quick_search_position(app_handle: tauri::AppHandle, x: f64, y: f64) -> Result<(), String> {
     if let Some(window) = app_handle.get_window("quick-search") {
-        let position = tauri::PhysicalPosition::new(x as i32, y as i32);
+        // 使用 LogicalPosition 以匹配 get_screen_size 返回的逻辑尺寸
+        let position = tauri::LogicalPosition::new(x, y);
         window.set_position(position).map_err(|e| format!("设置窗口位置失败: {}", e))?;
     }
     Ok(())

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { listen } from '@tauri-apps/api/event'
 import { appWindow } from '@tauri-apps/api/window'
@@ -28,62 +28,58 @@ export default function QuickSearchWindow() {
   const inputRef = useRef<HTMLInputElement>(null)
   const settings = useStore((s) => s.settings)
 
-  // 应用窗口位置
-  const applyCustomPosition = useCallback(async () => {
+  // 应用窗口位置 - 直接从store读取最新设置
+  const applyPosition = async () => {
     try {
-      if (settings.quickSearchPositionMode === 'custom') {
-        // 自定义位置模式
+      const currentSettings = useStore.getState().settings
+      if (currentSettings.quickSearchPositionMode === 'custom') {
         await invoke('set_quick_search_position', {
-          x: settings.quickSearchCustomX,
-          y: settings.quickSearchCustomY
+          x: currentSettings.quickSearchCustomX,
+          y: currentSettings.quickSearchCustomY
         })
       } else {
-        // 居中模式 - 计算屏幕中心位置
+        // 居中模式
         const [screenWidth, screenHeight] = await invoke<[number, number]>('get_screen_size')
-        const windowWidth = 480
-        const windowHeight = 400
-        const centerX = Math.round((screenWidth - windowWidth) / 2)
-        const centerY = Math.round((screenHeight - windowHeight) / 2)
+        const centerX = Math.round((screenWidth - 480) / 2)
+        const centerY = Math.round((screenHeight - 400) / 2)
         await invoke('set_quick_search_position', { x: centerX, y: centerY })
       }
     } catch (err) {
       console.error('Failed to set position:', err)
     }
-  }, [settings.quickSearchPositionMode, settings.quickSearchCustomX, settings.quickSearchCustomY])
+  }
 
-  const handleClose = useCallback(async () => {
+  const handleClose = async () => {
     try {
       await invoke('hide_quick_search_window')
     } catch (err) {
       console.error('Failed to hide window:', err)
     }
-  }, [])
+  }
 
-  const handleFocusInput = useCallback(() => {
+  const handleFocusInput = async () => {
     setQuery('')
     setResults([])
     setCopiedField(null)
-    applyCustomPosition()
+    // 先设置位置，再聚焦输入框
+    await applyPosition()
     setTimeout(() => inputRef.current?.focus(), 50)
-  }, [applyCustomPosition])
+  }
 
   // 检查是否有活动会话
   useEffect(() => {
     const checkSession = async () => {
       try {
         await invoke<number>('get_total_secrets_count')
+        // 初始显示时设置位置
+        await applyPosition()
         inputRef.current?.focus()
       } catch {
         await handleClose()
       }
     }
     checkSession()
-  }, [handleClose])
-
-  // 初始应用位置
-  useEffect(() => {
-    applyCustomPosition()
-  }, [applyCustomPosition])
+  }, [])
 
   // 监听 focus-input 事件
   useEffect(() => {
@@ -93,7 +89,7 @@ export default function QuickSearchWindow() {
     return () => {
       unlisten.then(fn => fn())
     }
-  }, [handleFocusInput])
+  }, [])
 
   // 搜索
   useEffect(() => {
@@ -145,7 +141,7 @@ export default function QuickSearchWindow() {
     }
     document.addEventListener('keydown', handleKeyDown, true)
     return () => document.removeEventListener('keydown', handleKeyDown, true)
-  }, [handleClose])
+  }, [])
 
   // 失去焦点时隐藏窗口
   useEffect(() => {
@@ -157,31 +153,36 @@ export default function QuickSearchWindow() {
     return () => {
       unlisten.then(fn => fn())
     }
-  }, [handleClose])
-
-  // 处理拖动开始
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    // 只响应左键点击
-    if (e.button !== 0) return
-    appWindow.startDragging()
   }, [])
+
+  // 处理拖动 - 使用Tauri API
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // 只响应左键，且不在按钮上
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('button')) return
+    appWindow.startDragging()
+  }
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900 overflow-hidden" style={{ borderRadius: '12px' }}>
       {/* 拖动区域 - 顶部标题栏 */}
+      {/* 使用CSS -webkit-app-region 作为主要拖动方式，兼容Windows */}
       <div
-        className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 cursor-move"
-        onMouseDown={handleDragStart}
+        className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none"
+        style={{ WebkitAppRegion: 'drag', cursor: 'move' } as React.CSSProperties}
+        onMouseDown={handleMouseDown}
       >
-        <div
-          className="flex items-center gap-2 select-none"
-          onMouseDown={handleDragStart}
-        >
+        <div className="flex items-center gap-2">
           <GripVertical className="w-4 h-4 text-slate-400" />
           <Search className="w-4 h-4 text-violet-500" />
           <span className="text-xs font-medium text-slate-600 dark:text-slate-400">快速搜索</span>
         </div>
-        <div className="flex items-center gap-1">
+        {/* 按钮区域设置为不可拖动 */}
+        <div
+          className="flex items-center gap-1"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
           <button
             onClick={() => setShowPlaintext(!showPlaintext)}
             className={`p-1.5 rounded-md transition-all ${
