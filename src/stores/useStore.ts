@@ -21,6 +21,9 @@ interface AppSettings {
   quickSearchShowPlaintext: boolean  // 快速搜索是否显示明文
   closeToTray: boolean  // 关闭时最小化到托盘
   startMinimized: boolean  // 启动时最小化到托盘
+  quickSearchPositionMode: string  // 'center' | 'custom'
+  quickSearchCustomX: number  // 自定义X位置
+  quickSearchCustomY: number  // 自定义Y位置
 }
 
 const defaultSettings: AppSettings = {
@@ -39,6 +42,9 @@ const defaultSettings: AppSettings = {
   quickSearchShowPlaintext: false,
   closeToTray: true,
   startMinimized: false,
+  quickSearchPositionMode: 'center',
+  quickSearchCustomX: 720,
+  quickSearchCustomY: 340,
 }
 
 // Load settings from localStorage

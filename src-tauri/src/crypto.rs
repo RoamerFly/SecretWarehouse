@@ -302,6 +302,11 @@ pub fn get_encryption_key() -> [u8; 32] {
     global_key.expect("Master Key未初始化，请先验证主密码")
 }
 
+/// 检查是否已初始化Master Key
+pub fn is_session_active() -> bool {
+    MASTER_KEY.lock().map(|key| key.is_some()).unwrap_or(false)
+}
+
 /// 清除内存中的密钥（退出时调用）
 pub fn clear_encryption_key() {
     let mut current_user = CURRENT_USERNAME.lock().expect("获取用户名锁失败");

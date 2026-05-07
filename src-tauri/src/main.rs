@@ -14,6 +14,8 @@ use tauri::{
     SystemTrayMenuItem, WindowBuilder, WindowUrl,
 };
 
+use crypto::is_session_active;
+
 fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::Window> {
     let url = if cfg!(debug_assertions) {
         WindowUrl::External("http://localhost:1420#quick-search".parse().unwrap())
@@ -35,6 +37,16 @@ fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::Wi
 }
 
 fn show_quick_search_window(app: &tauri::AppHandle) {
+    // 检查是否有活动会话
+    if !is_session_active() {
+        // 未登录，显示主窗口让用户登录
+        if let Some(window) = app.get_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        return;
+    }
+
     if let Some(window) = app.get_window("quick-search") {
         let _ = window.show();
         let _ = window.set_focus();
@@ -154,6 +166,9 @@ fn main() {
             commands::copy_field_to_clipboard,
             commands::get_secret_field_values,
             commands::hide_quick_search_window,
+            commands::check_active_session,
+            commands::set_quick_search_position,
+            commands::get_screen_size,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

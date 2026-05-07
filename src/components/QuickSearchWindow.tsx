@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { listen } from '@tauri-apps/api/event'
-import { Search, Copy, Check, X, Eye, EyeOff } from 'lucide-react'
+import { Search, Copy, Check, X, Eye, EyeOff, Move } from 'lucide-react'
 import { useStore } from '../stores/useStore'
 import { iconMap } from '../constants/icons'
 
@@ -27,6 +27,20 @@ export default function QuickSearchWindow() {
   const inputRef = useRef<HTMLInputElement>(null)
   const settings = useStore((s) => s.settings)
 
+  // 应用自定义位置
+  const applyCustomPosition = useCallback(async () => {
+    if (settings.quickSearchPositionMode === 'custom') {
+      try {
+        await invoke('set_quick_search_position', {
+          x: settings.quickSearchCustomX,
+          y: settings.quickSearchCustomY
+        })
+      } catch (err) {
+        console.error('Failed to set position:', err)
+      }
+    }
+  }, [settings.quickSearchPositionMode, settings.quickSearchCustomX, settings.quickSearchCustomY])
+
   const handleClose = useCallback(async () => {
     try {
       await invoke('hide_quick_search_window')
@@ -39,8 +53,9 @@ export default function QuickSearchWindow() {
     setQuery('')
     setResults([])
     setCopiedField(null)
+    applyCustomPosition()
     setTimeout(() => inputRef.current?.focus(), 50)
-  }, [])
+  }, [applyCustomPosition])
 
   // 检查是否有活动会话
   useEffect(() => {
@@ -140,6 +155,7 @@ export default function QuickSearchWindow() {
         data-tauri-drag-region
       >
         <div className="flex items-center gap-2" data-tauri-drag-region>
+          <Move className="w-3.5 h-3.5 text-slate-400 cursor-move" />
           <Search className="w-4 h-4 text-violet-500" />
           <span className="text-xs font-medium text-slate-600 dark:text-slate-400">快速搜索</span>
         </div>

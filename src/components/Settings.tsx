@@ -3,7 +3,8 @@ import { useStore } from '../stores/useStore'
 import { useTheme } from './ThemeProvider'
 import {
   X, Sun, Moon, Monitor, Type, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key,
-  Database, Download, Upload, Palette, AlignLeft, Grid3X3, Archive, ShieldCheck, Plus, PanelBottom
+  Database, Download, Upload, Palette, AlignLeft, Grid3X3, Archive, ShieldCheck, Plus, PanelBottom,
+  Crosshair, Move
 } from 'lucide-react'
 import { appWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/tauri'
@@ -140,6 +141,100 @@ function SliderWithInput({ label, value, min, max, step = 1, unit, onChange, ico
   )
 }
 
+// Position picker component
+interface PositionPickerProps {
+  x: number
+  y: number
+  screenWidth: number
+  screenHeight: number
+  onChange: (x: number, y: number) => void
+}
+
+function PositionPicker({ x, y, screenWidth, screenHeight, onChange }: PositionPickerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    updatePosition(e)
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      updatePosition(e)
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const updatePosition = (e: React.MouseEvent) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const relX = e.clientX - rect.left
+    const relY = e.clientY - rect.top
+
+    // Scale to screen coordinates
+    const scaledX = Math.round((relX / rect.width) * screenWidth)
+    const scaledY = Math.round((relY / rect.height) * screenHeight)
+
+    // Clamp values
+    const clampedX = Math.max(0, Math.min(screenWidth - 480, scaledX))
+    const clampedY = Math.max(0, Math.min(screenHeight - 400, scaledY))
+
+    onChange(clampedX, clampedY)
+  }
+
+  // Window dimensions (QuickSearch is 480x400)
+  const windowWidthPercent = (480 / screenWidth) * 100
+  const windowHeightPercent = (400 / screenHeight) * 100
+  const windowXPercent = (x / screenWidth) * 100
+  const windowYPercent = (y / screenHeight) * 100
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>点击或拖动设置位置</span>
+        <span>{x}, {y}</span>
+      </div>
+      <div
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="relative w-full aspect-video bg-slate-200 dark:bg-slate-700 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 cursor-crosshair overflow-hidden"
+      >
+        {/* Screen representation */}
+        <div className="absolute inset-1 bg-slate-100 dark:bg-slate-800 rounded">
+          {/* Window indicator */}
+          <div
+            className="absolute bg-violet-500/30 border-2 border-violet-500 rounded flex items-center justify-center transition-all duration-75"
+            style={{
+              left: `${windowXPercent}%`,
+              top: `${windowYPercent}%`,
+              width: `${windowWidthPercent}%`,
+              height: `${windowHeightPercent}%`,
+            }}
+          >
+            <Move className="w-3 h-3 text-violet-600 dark:text-violet-400" />
+          </div>
+        </div>
+        {/* Corner markers */}
+        <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-slate-400 dark:border-slate-500" />
+        <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-slate-400 dark:border-slate-500" />
+        <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-slate-400 dark:border-slate-500" />
+        <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-slate-400 dark:border-slate-500" />
+      </div>
+      <div className="flex justify-between text-[10px] text-slate-400">
+        <span>0, 0</span>
+        <span>{screenWidth} × {screenHeight}</span>
+      </div>
+    </div>
+  )
+}
+
 // Section divider component
 function SectionTitle({ icon: Icon, title }: { icon: React.ElementType, title: string }) {
   return (
@@ -163,12 +258,36 @@ export default function Settings({ username }: SettingsProps) {
   const [dataStatus, setDataStatus] = useState<'idle' | 'exporting' | 'importing' | 'success' | 'error'>('idle')
   const [dataMessage, setDataMessage] = useState('')
   const [newKeyword, setNewKeyword] = useState('')
+  const [screenSize, setScreenSize] = useState({ width: 1920, height: 1080 })
 
   // Show saved notification
   const handleUpdateSettings = (partial: Partial<typeof settings>) => {
     updateSettings(partial)
     setShowSaved(true)
     setTimeout(() => setShowSaved(false), 1500)
+  }
+
+  // Fetch screen size
+  const fetchScreenSize = async () => {
+    try {
+      const [width, height] = await invoke<[number, number]>('get_screen_size')
+      setScreenSize({ width, height })
+    } catch (err) {
+      console.error('Failed to get screen size:', err)
+    }
+  }
+
+  // Handle position mode change
+  const handlePositionModeChange = async (mode: string) => {
+    handleUpdateSettings({ quickSearchPositionMode: mode })
+    if (mode === 'custom') {
+      await fetchScreenSize()
+    }
+  }
+
+  // Handle position change
+  const handlePositionChange = (x: number, y: number) => {
+    handleUpdateSettings({ quickSearchCustomX: x, quickSearchCustomY: y })
   }
 
   // Handle window size change
@@ -722,6 +841,59 @@ export default function Settings({ username }: SettingsProps) {
                   }`} />
                 </button>
               </div>
+            </div>
+
+            {/* 浮窗位置 Section */}
+            <div className="space-y-4">
+              <SectionTitle icon={Crosshair} title="快速搜索浮窗" />
+
+              {/* Position Mode */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Move className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">浮窗出现位置</label>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handlePositionModeChange('center')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                      settings.quickSearchPositionMode === 'center'
+                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                    <span>居中</span>
+                  </button>
+                  <button
+                    onClick={() => handlePositionModeChange('custom')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                      settings.quickSearchPositionMode === 'custom'
+                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Crosshair className="w-4 h-4" />
+                    <span>自定义</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Position Picker */}
+              {settings.quickSearchPositionMode === 'custom' && (
+                <div>
+                  <PositionPicker
+                    x={settings.quickSearchCustomX}
+                    y={settings.quickSearchCustomY}
+                    screenWidth={screenSize.width}
+                    screenHeight={screenSize.height}
+                    onChange={handlePositionChange}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    浮窗大小: 480 × 400 像素
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 数据 Section */}

@@ -713,3 +713,32 @@ pub fn hide_quick_search_window(app_handle: tauri::AppHandle) -> Result<(), Stri
     }
     Ok(())
 }
+
+/// 检查是否有活动会话
+#[tauri::command]
+pub fn check_active_session() -> bool {
+    crypto::is_session_active()
+}
+
+/// 设置快速搜索窗口位置
+#[tauri::command]
+pub fn set_quick_search_position(app_handle: tauri::AppHandle, x: f64, y: f64) -> Result<(), String> {
+    if let Some(window) = app_handle.get_window("quick-search") {
+        let position = tauri::PhysicalPosition::new(x as i32, y as i32);
+        window.set_position(position).map_err(|e| format!("设置窗口位置失败: {}", e))?;
+    }
+    Ok(())
+}
+
+/// 获取屏幕尺寸
+#[tauri::command]
+pub fn get_screen_size(app_handle: tauri::AppHandle) -> Result<(f64, f64), String> {
+    if let Some(window) = app_handle.get_window("main") {
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let size = monitor.size();
+            let scale = monitor.scale_factor();
+            return Ok((size.width as f64 / scale, size.height as f64 / scale));
+        }
+    }
+    Ok((1920.0, 1080.0)) // 默认值
+}
