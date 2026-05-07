@@ -155,14 +155,14 @@ export default function QuickSearchWindow() {
       {/* 标题栏 - 使用 data-tauri-drag-region 实现拖动 */}
       <div
         data-tauri-drag-region
-        className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none"
+        className="drag-region flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none"
       >
         <div className="flex items-center gap-2" data-tauri-drag-region>
-          <GripVertical className="w-4 h-4 text-slate-400" data-tauri-drag-region />
-          <Search className="w-4 h-4 text-violet-500" data-tauri-drag-region />
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-400" data-tauri-drag-region>快速搜索</span>
+          <GripVertical className="w-4 h-4 text-slate-400" />
+          <Search className="w-4 h-4 text-violet-500" />
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-400">快速搜索</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="no-drag-region flex items-center gap-1">
           <button
             type="button"
             onClick={() => setShowPlaintext(!showPlaintext)}
