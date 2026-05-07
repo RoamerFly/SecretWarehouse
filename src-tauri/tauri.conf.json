@@ -28,6 +28,9 @@
       },
       "globalShortcut": {
         "all": true
+      },
+      "window": {
+        "startDragging": true
       }
     },
     "bundle": {
@@ -60,7 +63,8 @@
         "height": 800,
         "minWidth": 800,
         "minHeight": 600,
-        "decorations": true
+        "decorations": true,
+        "fileDropEnabled": false
       }
     ]
   }

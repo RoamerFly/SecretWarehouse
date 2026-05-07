@@ -159,22 +159,3 @@ button:active:not(:disabled) {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
-
-/* Window drag region for Tauri (Windows/macOS/Linux) */
-.drag-region {
-  -webkit-app-region: drag;
-  cursor: move;
-}
-
-.no-drag-region {
-  -webkit-app-region: no-drag;
-}
-
-.drag-region * {
-  -webkit-app-region: drag;
-}
-
-.no-drag-region,
-.no-drag-region * {
-  -webkit-app-region: no-drag;
-}
