@@ -3,6 +3,9 @@ node_modules/
 
 # Build outputs
 dist/
+dist_linux/
+dist_windows/
+dist_macos/
 linux_dist/
 windows_dist/
 mac_dist/
