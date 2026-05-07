@@ -157,10 +157,10 @@ export default function QuickSearchWindow() {
         data-tauri-drag-region
         className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none cursor-move"
       >
-        <div className="flex items-center gap-2">
-          <GripVertical className="w-4 h-4 text-slate-400" />
-          <Search className="w-4 h-4 text-violet-500" />
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-400">快速搜索</span>
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <GripVertical className="w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="w-4 h-4 text-violet-500 pointer-events-none" />
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-400" data-tauri-drag-region>快速搜索</span>
         </div>
         <div className="flex items-center gap-1">
           <button
