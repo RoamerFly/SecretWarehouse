@@ -69,7 +69,9 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       # ==================== Rust Setup ====================
       - name: Install Rust toolchain

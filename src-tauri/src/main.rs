@@ -117,26 +117,24 @@ fn main() {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    match event {
-                        tauri::tray::TrayIconEvent::Click {
-                            button: tauri::tray::MouseButton::Left,
-                            button_state: tauri::tray::MouseButtonState::Up,
-                            ..
-                        } => {
-                            // 左键点击显示主窗口
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                    if let tauri::tray::TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        button_state: tauri::tray::MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        // 左键点击显示主窗口
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
-                        _ => {}
                     }
                 })
                 .build(app)?;
 
             // 创建快速搜索窗口（初始隐藏）
-            create_quick_search_window(&app.handle())?;
+            create_quick_search_window(app.handle())?;
 
             // 窗口关闭时隐藏到托盘而不是退出
             if let Some(window) = app.get_webview_window("main") {
