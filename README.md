@@ -9,7 +9,7 @@ SecretWarehouse
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
-[快速开始](#-快速开始) ·  [功能特性](#-功能特性) · [界面预览](#-界面预览) · [安全架构](#-安全架构) · [开发计划](#-开发计划)
+[快速开始](#-快速开始) · [功能特性](#-功能特性) · [界面预览](#-界面预览) · [安全架构](#-安全架构) · [开发计划](#-开发计划)
 
 </div>
 
@@ -59,44 +59,52 @@ SecretWarehouse
 
 ## 🖼️ 界面预览
 
-
 ### 主界面
+
+<div align="center">
+
 ![主界面](docs/images/main.png)
+
 *简洁直观的主界面 - 侧边栏 + 卡片列表*
 
 </div>
 
+### 新建条目
+
 <div align="center">
 
-### 新建条目
-![新建条目](../../../../MdBigImages/README/create-entry.png)![新建条目](docs/images/create-entry2.png)
+![新建条目](docs/images/create-entry.png)
 
 *支持自定义字段、标签、图标，支持设置遮蔽字段值*
 
 </div>
 
-<div align="center">
 ### 搜索
 
-![快速搜索](docs/images/search.png)
+<div align="center">
+
+![搜索](docs/images/search.png)
+
 *模糊匹配所有字段，对任何字段有点印象，即可查找出来*
 
 </div>
 
 ### 快速搜索
 
+<div align="center">
+
 ![快速搜索](docs/images/quick-search.png)
+
 *全局快捷键呼出悬浮窗，支持拖动移动位置，快速查找并复制字段，支持设置是否遮蔽显示*
 
 </div>
 
-<div align="center"
-
-
 ### 设置界面
+
+<div align="center">
+
 ![设置界面](docs/images/settings.png)
 
-![设置界面](docs/images/settings2.png)
 *支持字体大小、卡片大小、间距、窗口尺寸等自定义设置*
 
 </div>
