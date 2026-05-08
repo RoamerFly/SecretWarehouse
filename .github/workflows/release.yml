@@ -9,6 +9,7 @@ on:
 env:
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: short
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -19,13 +20,13 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             bundle: deb,appimage
-          - os: macos-latest
+          - os: macos-14
             target: aarch64-apple-darwin
             bundle: dmg
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             bundle: dmg
-          - os: windows-latest
+          - os: windows-2025-vs2026
             target: x86_64-pc-windows-msvc
             bundle: msi,nsis
 
