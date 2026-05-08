@@ -45,36 +45,39 @@ export default function MasterPassword({ onUnlock }: MasterPasswordProps) {
 
   const initializeUsernames = async () => {
     try {
-      // 从后端获取已存在的用户名
+      // 从后端获取已存在的用户名（后端是唯一可信来源）
       const backendUsernames = await invoke<string[]>('get_all_usernames')
 
-      // 从localStorage获取缓存的用户名列表
-      const cachedUsernames = getStoredUsernames()
-
-      // 合并两个列表（去重）
-      const allUsernames = [...new Set([...backendUsernames, ...cachedUsernames])]
-      setExistingUsernames(allUsernames)
-
-      // 更新localStorage
-      localStorage.setItem(STORAGE_KEY_USERNAMES, JSON.stringify(allUsernames))
+      // 始终以后端数据为准，同步更新localStorage
+      setExistingUsernames(backendUsernames)
+      localStorage.setItem(STORAGE_KEY_USERNAMES, JSON.stringify(backendUsernames))
 
       // 获取上次登录的用户名
       const lastUser = localStorage.getItem(STORAGE_KEY_LAST_USER)
-      if (lastUser && allUsernames.includes(lastUser)) {
+
+      // 验证lastUser是否在有效用户列表中
+      if (lastUser && backendUsernames.includes(lastUser)) {
         setUsername(lastUser)
         // 检查该用户是否存在（已设置密码）
         const isSet = await invoke<boolean>('is_master_password_set', { username: lastUser })
         setViewMode(isSet ? 'unlock' : 'setup')
-      } else if (allUsernames.length > 0) {
+      } else if (backendUsernames.length > 0) {
         // 默认选择第一个用户
-        setUsername(allUsernames[0])
-        const isSet = await invoke<boolean>('is_master_password_set', { username: allUsernames[0] })
+        setUsername(backendUsernames[0])
+        const isSet = await invoke<boolean>('is_master_password_set', { username: backendUsernames[0] })
         setViewMode(isSet ? 'unlock' : 'setup')
       } else {
+        // 后端无用户，清除lastUser缓存
+        localStorage.removeItem(STORAGE_KEY_LAST_USER)
+        setUsername('')
         setViewMode('setup')
       }
     } catch (err) {
       console.error('Failed to initialize usernames:', err)
+      // 出错时也清除缓存，防止残留数据导致问题
+      localStorage.removeItem(STORAGE_KEY_USERNAMES)
+      localStorage.removeItem(STORAGE_KEY_LAST_USER)
+      setExistingUsernames([])
       setViewMode('setup')
     }
   }

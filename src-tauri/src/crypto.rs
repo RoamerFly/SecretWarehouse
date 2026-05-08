@@ -40,6 +40,25 @@ pub fn user_exists(username: &str) -> bool {
         && get_user_file_path(username, AUTH_VERIFY_FILE).exists()
 }
 
+/// 检查用户目录是否存在（可能有部分文件）
+fn user_dir_exists(username: &str) -> bool {
+    get_user_data_dir(username).exists()
+}
+
+/// 清除用户数据目录（用于重建用户或清理残留数据）
+pub fn cleanup_user_data(username: &str) -> Result<(), String> {
+    let user_dir = get_user_data_dir(username);
+    if user_dir.exists() {
+        std::fs::remove_dir_all(&user_dir)
+            .map_err(|e| format!("清除用户数据失败: {}", e))?;
+    }
+    // 同时清除内存中的会话状态
+    if get_current_username() == Some(username.to_string()) {
+        clear_encryption_key();
+    }
+    Ok(())
+}
+
 /// 获取所有已存在的用户名
 pub fn get_all_usernames() -> Vec<String> {
     let mut usernames = Vec::new();
@@ -133,8 +152,14 @@ pub fn is_master_password_set(username: &str) -> bool {
 /// 为用户创建主密码（首次使用）
 /// 返回恢复码，用户必须备份
 pub fn set_master_password(username: &str, password: &str) -> Result<String, String> {
+    // 检查是否已有完整的用户数据
     if is_master_password_set(username) {
         return Err("主密码已设置".to_string());
+    }
+
+    // 如果存在残留的用户目录（不完整数据），先清理
+    if user_dir_exists(username) {
+        cleanup_user_data(username)?;
     }
 
     // 1. 生成随机盐值

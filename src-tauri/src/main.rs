@@ -125,9 +125,13 @@ fn main() {
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        window_clone.hide().unwrap();
+                        let _ = window_clone.hide();
                     }
                 });
+
+                // 确保主窗口在启动时显示并获得焦点
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             Ok(())
