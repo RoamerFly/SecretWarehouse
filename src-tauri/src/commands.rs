@@ -5,6 +5,9 @@ use indexmap::IndexMap;
 use rand::Rng;
 use tauri::{Manager, State};
 
+/// Imported secret row type: (id, icon, title, description, encrypted_fields, tags, created_at, updated_at, favorite)
+type ImportedSecretRow = (String, String, String, String, String, String, i64, i64, i64);
+
 #[tauri::command]
 pub fn create_secret(
     state: State<'_, DbState>,
@@ -59,6 +62,7 @@ pub fn get_favorites_count(state: State<'_, DbState>) -> Result<i64, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn update_secret(
     state: State<'_, DbState>,
     id: String,
@@ -366,7 +370,7 @@ pub fn import_database(state: State<'_, DbState>, username: String, path: String
         let mut count = 0;
 
         // Get all secrets from import file
-        let imported_secrets: Vec<(String, String, String, String, String, String, i64, i64, i64)> = {
+        let imported_secrets: Vec<ImportedSecretRow> = {
             let mut stmt = import_conn.prepare(
                 "SELECT id, icon, title, description, encrypted_fields, tags, created_at, updated_at, favorite FROM secrets"
             ).map_err(|e| format!("查询导入数据失败: {}", e))?;

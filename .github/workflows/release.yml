@@ -44,7 +44,7 @@ jobs:
             label: linux-x64
             target: x86_64-unknown-linux-gnu
             asset_suffix: linux-x64
-          - runner: windows-2025-vs2026
+          - runner: windows-latest
             label: windows-x64
             target: x86_64-pc-windows-msvc
             asset_suffix: windows-x64
@@ -96,6 +96,17 @@ jobs:
           Write-Host "NSIS installed, makensis path:"
           Get-Command makensis -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 
+      - name: Generate macOS icon
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [ -d "src-tauri/icons/icon.iconset" ]; then
+            iconutil -c icns -o "src-tauri/icons/icon.icns" "src-tauri/icons/icon.iconset"
+            echo "Generated icon.icns"
+          else
+            echo "icon.iconset not found, skipping icns generation"
+          fi
+
       - name: Install frontend dependencies
         run: npm ci
 
@@ -115,14 +126,14 @@ jobs:
           mkdir -p release
 
           # AppImage
-          APPIMAGE=$(find src-tauri/target -name "*.AppImage" | head -1)
+          APPIMAGE=$(find src-tauri/target -name "*.AppImage" -type f 2>/dev/null | head -1)
           if [ -n "$APPIMAGE" ]; then
             cp "$APPIMAGE" "release/${BASE_NAME}.AppImage"
             chmod +x "release/${BASE_NAME}.AppImage"
           fi
 
           # deb package
-          DEB=$(find src-tauri/target -name "*.deb" | head -1)
+          DEB=$(find src-tauri/target -name "*.deb" -type f 2>/dev/null | head -1)
           if [ -n "$DEB" ]; then
             cp "$DEB" "release/${BASE_NAME}.deb"
           fi
@@ -149,14 +160,14 @@ jobs:
           mkdir -p release
 
           # DMG installer
-          DMG=$(find src-tauri/target -name "*.dmg" | head -1)
+          DMG=$(find src-tauri/target -name "*.dmg" -type f 2>/dev/null | head -1)
           if [ -n "$DMG" ]; then
             cp "$DMG" "release/${BASE_NAME}.dmg"
             echo "Created DMG: ${BASE_NAME}.dmg"
           fi
 
           # Portable zip with .app bundle
-          APP_BUNDLE=$(find src-tauri/target/release/bundle -name "*.app" -type d | head -1)
+          APP_BUNDLE=$(find src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
           if [ -n "$APP_BUNDLE" ]; then
             cd "$(dirname "$APP_BUNDLE")"
             /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$(basename "$APP_BUNDLE")" "${OLDPWD}/release/${BASE_NAME}-portable.zip"
@@ -175,20 +186,28 @@ jobs:
           $BASE_NAME = "${env:APP_NAME}-${env:TAG_NAME}-${{ matrix.asset_suffix }}"
           New-Item -ItemType Directory -Force -Path release
 
-          # NSIS installer
-          $NSIS_EXE = Get-ChildItem -Path "src-tauri/target" -Filter "*.exe" -Recurse |
-                      Where-Object { $_.FullName -match "nsis" } |
-                      Select-Object -First 1
+          # NSIS installer - search in bundle directory
+          $NSIS_EXE = Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release/bundle/nsis" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $NSIS_EXE) {
+            $NSIS_EXE = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
           if ($NSIS_EXE) {
             Copy-Item $NSIS_EXE.FullName "release/${BASE_NAME}-installer.exe"
             Write-Host "Created installer: ${BASE_NAME}-installer.exe"
+          } else {
+            Write-Host "NSIS installer not found"
           }
 
-          # Portable zip
-          $APP_EXE = Get-ChildItem -Path "src-tauri/target/release" -Filter "${env:APP_NAME}.exe" | Select-Object -First 1
+          # Portable zip - find executable
+          $APP_EXE = Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release" -Filter "secret-warehouse.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $APP_EXE) {
+            $APP_EXE = Get-ChildItem -Path "src-tauri/target/release" -Filter "secret-warehouse.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
           if ($APP_EXE) {
             Compress-Archive -Path $APP_EXE.FullName -DestinationPath "release/${BASE_NAME}-portable.zip" -Force
             Write-Host "Created portable: ${BASE_NAME}-portable.zip"
+          } else {
+            Write-Host "Executable not found"
           }
 
           Get-ChildItem -Path release -File
