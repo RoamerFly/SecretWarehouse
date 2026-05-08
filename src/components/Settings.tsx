@@ -1041,7 +1041,16 @@ export default function Settings({ username }: SettingsProps) {
                 </div>
                 <select
                   value={settings.quickSearchShortcut}
-                  onChange={(e) => handleUpdateSettings({ quickSearchShortcut: e.target.value })}
+                  onChange={async (e) => {
+                    const newShortcut = e.target.value
+                    try {
+                      await invoke('register_quick_search_shortcut', { shortcut: newShortcut })
+                      handleUpdateSettings({ quickSearchShortcut: newShortcut })
+                    } catch (err) {
+                      console.error('Failed to register shortcut:', err)
+                      alert(`快捷键注册失败: ${err}`)
+                    }
+                  }}
                   className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
                 >
                   <option value="CommandOrControl+Shift+P">Ctrl/Cmd + Shift + P</option>
@@ -1053,7 +1062,7 @@ export default function Settings({ username }: SettingsProps) {
                   <option value="CommandOrControl+K">Ctrl/Cmd + K</option>
                 </select>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-                  修改后需重启应用生效
+                  选择后立即生效，无需重启
                 </p>
               </div>
             </CollapsibleSection>

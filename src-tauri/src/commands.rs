@@ -1,9 +1,11 @@
 use crate::crypto;
 use crate::db::DbState;
 use crate::models::*;
+use crate::parse_shortcut;
 use indexmap::IndexMap;
 use rand::Rng;
 use tauri::{Emitter, Manager, State};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 /// Imported secret row type: (id, icon, title, description, encrypted_fields, tags, created_at, updated_at, favorite)
 type ImportedSecretRow = (String, String, String, String, String, String, i64, i64, i64);
@@ -821,3 +823,33 @@ pub fn get_screen_size(app_handle: tauri::AppHandle) -> Result<(f64, f64), Strin
     }
     Ok((1920.0, 1080.0)) // 默认值
 }
+
+/// 注册快速搜索全局快捷键
+#[tauri::command]
+pub fn register_quick_search_shortcut(app_handle: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    // 先注销所有已注册的快捷键
+    let _ = app_handle.global_shortcut().unregister_all();
+
+    // 解析并注册新快捷键
+    if let Some(parsed) = parse_shortcut(&shortcut) {
+        let app_handle_clone = app_handle.clone();
+        app_handle.global_shortcut()
+            .on_shortcut(parsed, move |_app, _event, _shortcut| {
+                show_quick_search_window(&app_handle_clone);
+            })
+            .map_err(|e| format!("注册快捷键失败: {}", e))?;
+        Ok(())
+    } else {
+        Err(format!("无法解析快捷键: {}", shortcut))
+    }
+}
+
+/// 注销所有快速搜索快捷键
+#[tauri::command]
+pub fn unregister_quick_search_shortcut(app_handle: tauri::AppHandle) -> Result<(), String> {
+    app_handle.global_shortcut()
+        .unregister_all()
+        .map_err(|e| format!("注销快捷键失败: {}", e))
+}
+
+use crate::show_quick_search_window;

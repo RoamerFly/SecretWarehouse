@@ -12,6 +12,7 @@ use db::DbState;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
 /// 显示主窗口
 fn show_main_window(app: &tauri::AppHandle) {
@@ -23,6 +24,84 @@ fn show_main_window(app: &tauri::AppHandle) {
 }
 
 use crypto::is_session_active;
+
+/// 默认快捷键: Ctrl+Shift+P (Windows/Linux) / Command+Shift+P (macOS)
+const DEFAULT_SHORTCUT: &str = "CommandOrControl+Shift+P";
+
+/// 解析快捷键字符串为 Shortcut 对象
+fn parse_shortcut(shortcut_str: &str) -> Option<Shortcut> {
+    let parts: Vec<&str> = shortcut_str.split('+').collect();
+    let mut modifiers = Modifiers::empty();
+    let mut code = None;
+
+    for part in &parts {
+        match part.to_lowercase().as_str() {
+            "control" | "ctrl" => modifiers |= Modifiers::CONTROL,
+            "command" | "commandorcontrol" | "meta" => {
+                if cfg!(target_os = "macos") {
+                    modifiers |= Modifiers::META
+                } else {
+                    modifiers |= Modifiers::CONTROL
+                }
+            }
+            "shift" => modifiers |= Modifiers::SHIFT,
+            "alt" | "option" => modifiers |= Modifiers::ALT,
+            "a" => code = Some(Code::KeyA),
+            "b" => code = Some(Code::KeyB),
+            "c" => code = Some(Code::KeyC),
+            "d" => code = Some(Code::KeyD),
+            "e" => code = Some(Code::KeyE),
+            "f" => code = Some(Code::KeyF),
+            "g" => code = Some(Code::KeyG),
+            "h" => code = Some(Code::KeyH),
+            "i" => code = Some(Code::KeyI),
+            "j" => code = Some(Code::KeyJ),
+            "k" => code = Some(Code::KeyK),
+            "l" => code = Some(Code::KeyL),
+            "m" => code = Some(Code::KeyM),
+            "n" => code = Some(Code::KeyN),
+            "o" => code = Some(Code::KeyO),
+            "p" => code = Some(Code::KeyP),
+            "q" => code = Some(Code::KeyQ),
+            "r" => code = Some(Code::KeyR),
+            "s" => code = Some(Code::KeyS),
+            "t" => code = Some(Code::KeyT),
+            "u" => code = Some(Code::KeyU),
+            "v" => code = Some(Code::KeyV),
+            "w" => code = Some(Code::KeyW),
+            "x" => code = Some(Code::KeyX),
+            "y" => code = Some(Code::KeyY),
+            "z" => code = Some(Code::KeyZ),
+            "0" => code = Some(Code::Digit0),
+            "1" => code = Some(Code::Digit1),
+            "2" => code = Some(Code::Digit2),
+            "3" => code = Some(Code::Digit3),
+            "4" => code = Some(Code::Digit4),
+            "5" => code = Some(Code::Digit5),
+            "6" => code = Some(Code::Digit6),
+            "7" => code = Some(Code::Digit7),
+            "8" => code = Some(Code::Digit8),
+            "9" => code = Some(Code::Digit9),
+            "f1" => code = Some(Code::F1),
+            "f2" => code = Some(Code::F2),
+            "f3" => code = Some(Code::F3),
+            "f4" => code = Some(Code::F4),
+            "f5" => code = Some(Code::F5),
+            "f6" => code = Some(Code::F6),
+            "f7" => code = Some(Code::F7),
+            "f8" => code = Some(Code::F8),
+            "f9" => code = Some(Code::F9),
+            "f10" => code = Some(Code::F10),
+            "f11" => code = Some(Code::F11),
+            "f12" => code = Some(Code::F12),
+            "space" => code = Some(Code::Space),
+            "escape" | "esc" => code = Some(Code::Escape),
+            _ => {}
+        }
+    }
+
+    code.map(|c| Shortcut::new(Some(modifiers), c))
+}
 
 fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let url = if cfg!(debug_assertions) {
@@ -44,7 +123,7 @@ fn create_quick_search_window(app: &tauri::AppHandle) -> tauri::Result<tauri::We
         .build()
 }
 
-fn show_quick_search_window(app: &tauri::AppHandle) {
+pub fn show_quick_search_window(app: &tauri::AppHandle) {
     // 检查是否有活动会话
     if !is_session_active() {
         // 未登录，显示主窗口让用户登录
@@ -136,6 +215,14 @@ fn main() {
             // 创建快速搜索窗口（初始隐藏）
             create_quick_search_window(app.handle())?;
 
+            // 注册全局快捷键
+            let app_handle = app.handle().clone();
+            if let Some(shortcut) = parse_shortcut(DEFAULT_SHORTCUT) {
+                app.global_shortcut().on_shortcut(shortcut, move |_app, _event, _shortcut| {
+                    show_quick_search_window(&app_handle);
+                })?;
+            }
+
             // 窗口关闭时隐藏到托盘而不是退出
             if let Some(window) = app.get_webview_window("main") {
                 let window_clone = window.clone();
@@ -197,6 +284,8 @@ fn main() {
             commands::check_active_session,
             commands::set_quick_search_position,
             commands::get_screen_size,
+            commands::register_quick_search_shortcut,
+            commands::unregister_quick_search_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
