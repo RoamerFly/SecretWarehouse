@@ -6,6 +6,8 @@
     "core:default",
     "core:window:default",
     "core:window:allow-start-dragging",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-write-text",
     "dialog:allow-open",
