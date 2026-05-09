@@ -245,15 +245,18 @@ fn main() {
 
             // 窗口关闭时根据设置决定行为
             if let Some(window) = app.get_webview_window("main") {
-                let window_clone = window.clone();
+                let app_handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         if CLOSE_TO_TRAY.load(Ordering::Relaxed) {
                             // 关闭到托盘：阻止关闭并隐藏窗口
                             api.prevent_close();
-                            let _ = window_clone.hide();
+                            let _ = app_handle.get_webview_window("main").map(|w| w.hide());
+                        } else {
+                            // 不关闭到托盘：直接退出整个应用程序
+                            api.prevent_close();
+                            app_handle.exit(0);
                         }
-                        // 否则直接关闭窗口
                     }
                 });
 
