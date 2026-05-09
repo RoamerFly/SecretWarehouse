@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useStore } from './stores/useStore'
 import { ThemeProvider } from './components/ThemeProvider'
 import Sidebar from './components/Sidebar'
@@ -20,6 +22,8 @@ const isQuickSearchWindow = window.location.hash === '#quick-search'
 function AppContent() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [currentUsername, setCurrentUsername] = useState<string>('')
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
+  const [dontAskAgain, setDontAskAgain] = useState(false)
   const fetchSecrets = useStore((s) => s.fetchSecrets)
   const showForm = useStore((s) => s.showForm)
   const selectedSecret = useStore((s) => s.selectedSecret)
@@ -27,9 +31,46 @@ function AppContent() {
   const showTemplateForm = useStore((s) => s.showTemplateForm)
   const showSettings = useStore((s) => s.showSettings)
   const settings = useStore((s) => s.settings)
+  const updateSettings = useStore((s) => s.updateSettings)
   const setShowTemplates = useStore((s) => s.setShowTemplates)
   const setShowForm = useStore((s) => s.setShowForm)
   const initialized = useRef(false)
+
+  // 监听关闭请求事件
+  useEffect(() => {
+    const unlisten = listen('close-requested', () => {
+      if (settings.askOnClose) {
+        setShowCloseDialog(true)
+      } else {
+        // 不询问，直接按设置执行
+        if (settings.closeToTray) {
+          getCurrentWindow().hide()
+        } else {
+          invoke('exit_app')
+        }
+      }
+    })
+
+    return () => {
+      unlisten.then(fn => fn())
+    }
+  }, [settings.askOnClose, settings.closeToTray])
+
+  // 处理关闭对话框选择
+  const handleCloseChoice = async (minimizeToTray: boolean) => {
+    setShowCloseDialog(false)
+
+    // 如果勾选了"不再询问"，更新设置
+    if (dontAskAgain) {
+      updateSettings({ askOnClose: false, closeToTray: minimizeToTray })
+    }
+
+    if (minimizeToTray) {
+      await getCurrentWindow().hide()
+    } else {
+      await invoke('exit_app')
+    }
+  }
 
   useEffect(() => {
     if (!initialized.current && isUnlocked) {
@@ -84,6 +125,51 @@ function AppContent() {
       {showTemplateForm && <TemplateForm />}
       {showSettings && <Settings username={currentUsername} />}
       <QuickSearch />
+
+      {/* 关闭询问对话框 */}
+      {showCloseDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm mx-4 border border-slate-200 dark:border-slate-700/60 shadow-2xl">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">关闭窗口</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                选择关闭方式：
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => handleCloseChoice(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl transition-colors"
+                >
+                  <span className="text-lg">📥</span>
+                  <div className="text-left">
+                    <div className="font-medium">最小化到托盘</div>
+                    <div className="text-xs opacity-75">继续在后台运行</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleCloseChoice(false)}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+                >
+                  <span className="text-lg">🚪</span>
+                  <div className="text-left">
+                    <div className="font-medium">退出应用</div>
+                    <div className="text-xs opacity-75">完全关闭程序</div>
+                  </div>
+                </button>
+              </div>
+              <label className="flex items-center gap-2 mt-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dontAskAgain}
+                  onChange={(e) => setDontAskAgain(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-violet-500 focus:ring-violet-500"
+                />
+                <span className="text-sm text-slate-600 dark:text-slate-400">记住此选择，下次不再询问</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

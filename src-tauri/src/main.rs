@@ -223,13 +223,14 @@ fn main() {
                 })?;
             }
 
-            // 窗口关闭时隐藏到托盘而不是退出
+            // 窗口关闭时询问用户
             if let Some(window) = app.get_webview_window("main") {
-                let window_clone = window.clone();
+                let app_handle = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = window_clone.hide();
+                        // 发送事件到前端，让前端决定是否询问
+                        let _ = app_handle.emit("close-requested", ());
                     }
                 });
 
@@ -286,6 +287,7 @@ fn main() {
             commands::get_screen_size,
             commands::register_quick_search_shortcut,
             commands::unregister_quick_search_shortcut,
+            commands::exit_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

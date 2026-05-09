@@ -852,4 +852,10 @@ pub fn unregister_quick_search_shortcut(app_handle: tauri::AppHandle) -> Result<
         .map_err(|e| format!("注销快捷键失败: {}", e))
 }
 
+/// 退出应用
+#[tauri::command]
+pub fn exit_app(app_handle: tauri::AppHandle) {
+    app_handle.exit(0);
+}
+
 use crate::show_quick_search_window;

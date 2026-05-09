@@ -2,9 +2,9 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '../stores/useStore'
 import { useTheme } from './ThemeProvider'
 import {
-  X, Sun, Moon, Monitor, Type, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key,
-  Database, Download, Upload, Palette, AlignLeft, Grid3X3, Archive, ShieldCheck, Plus, PanelBottom,
-  Crosshair, Move, CheckCircle, HelpCircle, Trash2, Save, ChevronRight, ChevronDown
+  X, Sun, Moon, Monitor, LayoutGrid, Space, RotateCcw, Maximize2, Check, Star, Eye, Key,
+  Database, Download, Upload, Palette, AlignLeft, Archive, ShieldCheck, Plus,
+  Crosshair, Move, CheckCircle, HelpCircle, Trash2, Save, ChevronRight, ChevronDown, Zap
 } from 'lucide-react'
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
@@ -864,10 +864,8 @@ export default function Settings({ username }: SettingsProps) {
                   </div>
                 )}
               </div>
-            </CollapsibleSection>
 
-            {/* 字体 Section */}
-            <CollapsibleSection icon={Type} title="字体">
+              {/* Font Size */}
               <SliderWithInput
                 label="字体大小"
                 value={settings.fontSize}
@@ -877,10 +875,8 @@ export default function Settings({ username }: SettingsProps) {
                 icon={<AlignLeft className="w-4 h-4 text-slate-400" />}
                 onChange={(value) => handleUpdateSettings({ fontSize: value })}
               />
-            </CollapsibleSection>
 
-            {/* 布局 Section */}
-            <CollapsibleSection icon={Grid3X3} title="布局">
+              {/* Card Size */}
               <SliderWithInput
                 label="卡片大小"
                 value={settings.cardSize}
@@ -891,6 +887,7 @@ export default function Settings({ username }: SettingsProps) {
                 onChange={(value) => handleUpdateSettings({ cardSize: value })}
               />
 
+              {/* Spacing */}
               <SliderWithInput
                 label="间距"
                 value={settings.spacing}
@@ -1032,6 +1029,10 @@ export default function Settings({ username }: SettingsProps) {
                   </div>
                 )}
               </div>
+            </CollapsibleSection>
+
+            {/* 行为 Section */}
+            <CollapsibleSection icon={Zap} title="行为">
 
               {/* Quick Search Shortcut */}
               <div>
@@ -1065,10 +1066,6 @@ export default function Settings({ username }: SettingsProps) {
                   选择后立即生效，无需重启
                 </p>
               </div>
-            </CollapsibleSection>
-
-            {/* 托盘 Section */}
-            <CollapsibleSection icon={PanelBottom} title="系统托盘">
 
               {/* Close to Tray */}
               <div className="flex items-center justify-between">
@@ -1084,6 +1081,24 @@ export default function Settings({ username }: SettingsProps) {
                 >
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
                     settings.closeToTray ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Ask on Close */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-700 dark:text-slate-300">关闭时询问</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">关闭窗口时弹出选择对话框</div>
+                </div>
+                <button
+                  onClick={() => handleUpdateSettings({ askOnClose: !settings.askOnClose })}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    settings.askOnClose ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                    settings.askOnClose ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
               </div>
@@ -1105,12 +1120,8 @@ export default function Settings({ username }: SettingsProps) {
                   }`} />
                 </button>
               </div>
-            </CollapsibleSection>
 
-            {/* 浮窗位置 Section */}
-            <CollapsibleSection icon={Crosshair} title="快速搜索浮窗">
-
-              {/* Position Mode */}
+              {/* Quick Search Position */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Move className="w-4 h-4 text-slate-400" />
