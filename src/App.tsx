@@ -38,13 +38,19 @@ function AppContent() {
 
   // 监听关闭请求事件
   useEffect(() => {
-    const unlisten = listen('close-requested', () => {
-      if (settings.askOnClose) {
+    const unlisten = listen('close-requested', async () => {
+      // 从 store 获取最新的设置值
+      const currentSettings = useStore.getState().settings
+      if (currentSettings.askOnClose) {
         setShowCloseDialog(true)
       } else {
         // 不询问，直接按设置执行
-        if (settings.closeToTray) {
-          getCurrentWindow().hide()
+        if (currentSettings.closeToTray) {
+          try {
+            await getCurrentWindow().hide()
+          } catch (e) {
+            console.error('Failed to hide window:', e)
+          }
         } else {
           invoke('exit_app')
         }
@@ -54,7 +60,7 @@ function AppContent() {
     return () => {
       unlisten.then(fn => fn())
     }
-  }, [settings.askOnClose, settings.closeToTray])
+  }, [])
 
   // 处理关闭对话框选择
   const handleCloseChoice = async (minimizeToTray: boolean) => {
