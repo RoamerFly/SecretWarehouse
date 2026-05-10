@@ -52,16 +52,6 @@ export default function SecretForm() {
     }
   }, [])
 
-  // 全局鼠标释放监听
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      setDraggedIndex(null)
-      setHoveredIndex(null)
-    }
-    window.addEventListener('mouseup', handleGlobalMouseUp)
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp)
-  }, [])
-
   const handleSubmit = async () => {
     if (!title.trim() || isSubmitting) return
 
