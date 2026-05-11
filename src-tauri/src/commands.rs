@@ -817,6 +817,26 @@ pub fn set_quick_search_position(app_handle: tauri::AppHandle, x: f64, y: f64) -
     Ok(())
 }
 
+/// 隐藏快速添加窗口
+#[tauri::command]
+pub fn hide_quick_add_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("quick-add") {
+        window.hide().map_err(|e| format!("隐藏窗口失败: {}", e))?;
+    }
+    Ok(())
+}
+
+/// 设置快速添加窗口位置
+#[tauri::command]
+pub fn set_quick_add_position(app_handle: tauri::AppHandle, x: f64, y: f64) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("quick-add") {
+        // 使用 LogicalPosition 以匹配 get_screen_size 返回的逻辑尺寸
+        let position = tauri::LogicalPosition::new(x, y);
+        window.set_position(position).map_err(|e| format!("设置窗口位置失败: {}", e))?;
+    }
+    Ok(())
+}
+
 /// 获取屏幕尺寸
 #[tauri::command]
 pub fn get_screen_size(app_handle: tauri::AppHandle) -> Result<(f64, f64), String> {

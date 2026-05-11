@@ -14,9 +14,11 @@ import Settings from './components/Settings'
 import MasterPassword from './components/MasterPassword'
 import QuickSearch from './components/QuickSearch'
 import QuickSearchWindow from './components/QuickSearchWindow'
+import QuickAddWindow from './components/QuickAddWindow'
 
-// 检查是否是快速搜索独立窗口模式
+// 检查是否是快速搜索或快速添加浮窗模式
 const isQuickSearchWindow = window.location.hash === '#quick-search'
+const isQuickAddWindow = window.location.hash === '#quick-add'
 
 function AppContent() {
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -113,11 +115,20 @@ function AppContent() {
 }
 
 function App() {
-  // 如果是快速搜索独立窗口，只渲染 QuickSearchWindow
+  // 如果是快速搜索独立窗口
   if (isQuickSearchWindow) {
     return (
       <ThemeProvider>
         <QuickSearchWindow />
+      </ThemeProvider>
+    )
+  }
+
+  // 如果是快速添加独立窗口
+  if (isQuickAddWindow) {
+    return (
+      <ThemeProvider>
+        <QuickAddWindow />
       </ThemeProvider>
     )
   }

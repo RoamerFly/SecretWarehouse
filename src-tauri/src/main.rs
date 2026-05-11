@@ -37,6 +37,8 @@ static CLOSE_TO_TRAY: AtomicBool = AtomicBool::new(true);
 
 /// 默认快捷键: Ctrl+Shift+P (Windows/Linux) / Command+Shift+P (macOS)
 const DEFAULT_SHORTCUT: &str = "CommandOrControl+Shift+P";
+/// 快速添加默认快捷键: Ctrl+Shift+A
+const DEFAULT_QUICK_ADD_SHORTCUT: &str = "CommandOrControl+Shift+A";
 
 /// 解析快捷键字符串为 Shortcut 对象
 fn parse_shortcut(shortcut_str: &str) -> Option<Shortcut> {
@@ -156,6 +158,49 @@ pub fn show_quick_search_window(app: &tauri::AppHandle) {
     }
 }
 
+fn create_quick_add_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
+    let url = if cfg!(debug_assertions) {
+        WebviewUrl::External("http://localhost:1420#quick-add".parse().unwrap())
+    } else {
+        WebviewUrl::App("index.html#quick-add".into())
+    };
+
+    // 默认位置（屏幕中央附近），实际位置由前端根据用户设置动态调整
+    WebviewWindowBuilder::new(app, "quick-add", url)
+        .title("快速添加")
+        .inner_size(480.0, 500.0)
+        .resizable(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .position(0.0, 0.0)
+        .build()
+}
+
+pub fn show_quick_add_window(app: &tauri::AppHandle) {
+    // 检查是否有活动会话
+    if !is_session_active() {
+        // 未登录，显示主窗口让用户登录
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+        return;
+    }
+
+    if let Some(window) = app.get_webview_window("quick-add") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("focus-quick-add-input", ());
+    } else {
+        // 窗口不存在，重新创建
+        if let Err(e) = create_quick_add_window(app) {
+            eprintln!("Failed to create quick add window: {}", e);
+        }
+    }
+}
+
 fn main() {
     let db_state = DbState::new().expect("数据库初始化失败");
 
@@ -174,12 +219,14 @@ fn main() {
             // 创建系统托盘菜单
             let show_item = MenuItemBuilder::with_id("show", "显示主界面").build(app)?;
             let quick_search_item = MenuItemBuilder::with_id("quick_search", "快速搜索 (Ctrl+Shift+P)").build(app)?;
+            let quick_add_item = MenuItemBuilder::with_id("quick_add", "快速添加 (Ctrl+Shift+A)").build(app)?;
             let settings_item = MenuItemBuilder::with_id("settings", "设置").build(app)?;
             let quit_item = MenuItemBuilder::with_id("quit", "退出").build(app)?;
 
             let menu = MenuBuilder::new(app)
                 .item(&show_item)
                 .item(&quick_search_item)
+                .item(&quick_add_item)
                 .item(&settings_item)
                 .separator()
                 .item(&quit_item)
@@ -192,25 +239,28 @@ fn main() {
                 .icon(app.default_window_icon().unwrap().clone())
                 // 左键点击不显示菜单，直接显示主窗口
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| {
-                    match event.id().as_ref() {
-                        "show" => {
-                            show_main_window(app);
+                    .on_menu_event(|app, event| {
+                        match event.id().as_ref() {
+                            "show" => {
+                                show_main_window(app);
+                            }
+                            "quick_search" => {
+                                show_quick_search_window(app);
+                            }
+                            "quick_add" => {
+                                show_quick_add_window(app);
+                            }
+                            "settings" => {
+                                // 显示主窗口并打开设置
+                                show_main_window(app);
+                                let _ = app.emit("open-settings", ());
+                            }
+                            "quit" => {
+                                app.exit(0);
+                            }
+                            _ => {}
                         }
-                        "quick_search" => {
-                            show_quick_search_window(app);
-                        }
-                        "settings" => {
-                            // 显示主窗口并打开设置
-                            show_main_window(app);
-                            let _ = app.emit("open-settings", ());
-                        }
-                        "quit" => {
-                            app.exit(0);
-                        }
-                        _ => {}
-                    }
-                })
+                    })
                 .on_tray_icon_event(|tray, event| {
                     if let tauri::tray::TrayIconEvent::Click {
                         button: tauri::tray::MouseButton::Left,
@@ -227,11 +277,22 @@ fn main() {
             // 创建快速搜索窗口（初始隐藏）
             create_quick_search_window(app.handle())?;
 
+            // 创建快速添加窗口（初始隐藏）
+            create_quick_add_window(app.handle())?;
+
             // 注册全局快捷键
             let app_handle = app.handle().clone();
             if let Some(shortcut) = parse_shortcut(DEFAULT_SHORTCUT) {
                 app.global_shortcut().on_shortcut(shortcut, move |_app, _event, _shortcut| {
                     show_quick_search_window(&app_handle);
+                })?;
+            }
+
+            // 注册快速添加的全局快捷键
+            let app_handle_add = app.handle().clone();
+            if let Some(shortcut) = parse_shortcut(DEFAULT_QUICK_ADD_SHORTCUT) {
+                app.global_shortcut().on_shortcut(shortcut, move |_app, _event, _shortcut| {
+                    show_quick_add_window(&app_handle_add);
                 })?;
             }
 
@@ -300,8 +361,10 @@ fn main() {
             commands::copy_field_to_clipboard,
             commands::get_secret_field_values,
             commands::hide_quick_search_window,
+            commands::hide_quick_add_window,
             commands::check_active_session,
             commands::set_quick_search_position,
+            commands::set_quick_add_position,
             commands::get_screen_size,
             commands::register_quick_search_shortcut,
             commands::unregister_quick_search_shortcut,
