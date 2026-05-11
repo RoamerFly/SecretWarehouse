@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Plus, X, Eye, EyeOff, GripVertical, Save, Loader2 } from 'lucide-react'
 import { iconMap } from '../constants/icons'
 
@@ -66,17 +65,6 @@ export default function QuickAddWindow() {
       console.error('Position error:', err)
     }
   }, [])
-
-  // 拖动处理
-  const handleTitleMouseDown = async (e: React.MouseEvent) => {
-    if (e.button === 0) { // 左键
-      try {
-        await getCurrentWindow().startDragging()
-      } catch (err) {
-        console.error('Failed to start dragging:', err)
-      }
-    }
-  }
 
   // 隐藏窗口
   const hideWindow = useCallback(async () => {
@@ -228,11 +216,10 @@ export default function QuickAddWindow() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900 overflow-hidden" style={{ borderRadius: '12px' }}>
-      {/* 标题栏 */}
+      {/* 标题栏 - 使用 data-tauri-drag-region 实现拖动 */}
       <div
         data-tauri-drag-region
         className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none cursor-move"
-        onMouseDown={handleTitleMouseDown}
       >
         <div className="flex items-center gap-2" data-tauri-drag-region>
           <GripVertical className="w-4 h-4 text-slate-400 pointer-events-none" />
