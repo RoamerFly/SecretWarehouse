@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Plus, X, Eye, EyeOff, GripVertical, Save, Loader2 } from 'lucide-react'
 import { iconMap } from '../constants/icons'
+import useStore from '../stores/useStore'
 
 // 从 localStorage 读取设置
 function getSettings() {
@@ -36,7 +37,7 @@ export default function QuickAddWindow() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [fields, setFields] = useState<FieldItem[]>([
-    { id: generateFieldId(), key: '用户名', value: '', sensitive: false },
+    { id: generateFieldId(), key: '账号', value: '', sensitive: false },
     { id: generateFieldId(), key: '密码', value: '', sensitive: true },
   ])
   const [tags, setTags] = useState<string[]>([])
@@ -90,7 +91,7 @@ export default function QuickAddWindow() {
     setTitle('')
     setDescription('')
     setFields([
-      { id: generateFieldId(), key: '用户名', value: '', sensitive: false },
+      { id: generateFieldId(), key: '账号', value: '', sensitive: false },
       { id: generateFieldId(), key: '密码', value: '', sensitive: true },
     ])
     setTags([])
@@ -155,11 +156,9 @@ export default function QuickAddWindow() {
     setFields(fields.map(f => f.id === id ? { ...f, sensitive: !f.sensitive } : f))
   }
 
-  // 删除字段
+  // 删除字段（允许删除所有字段）
   const removeField = (id: number) => {
-    if (fields.length > 1) {
-      setFields(fields.filter(f => f.id !== id))
-    }
+    setFields(fields.filter(f => f.id !== id))
   }
 
   // 添加标签
@@ -216,6 +215,14 @@ export default function QuickAddWindow() {
         icon,
         sensitiveFields,
       })
+
+      // 通知主窗口刷新列表
+      try {
+        const fetchSecrets = useStore.getState().fetchSecrets
+        fetchSecrets()
+      } catch (e) {
+        console.error('Failed to refresh main window:', e)
+      }
 
       setSuccess(true)
       setTimeout(() => {
@@ -340,16 +347,14 @@ export default function QuickAddWindow() {
                 >
                   {field.sensitive ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                 </button>
-                {fields.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeField(field.id)}
-                    className="p-1 text-slate-400 hover:text-red-500 rounded-md transition-all"
-                    title="删除字段"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removeField(field.id)}
+                  className="p-1 text-slate-400 hover:text-red-500 rounded-md transition-all"
+                  title="删除字段"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
             ))}
           </div>
