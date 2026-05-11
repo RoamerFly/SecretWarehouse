@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default capabilities for SecretWarehouse",
-  "windows": ["main", "quick-search"],
+  "windows": ["main", "quick-search", "quick-add"],
   "permissions": [
     "core:default",
     "core:window:default",
