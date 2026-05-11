@@ -329,6 +329,7 @@ export default function Settings({ username }: SettingsProps) {
   const [newKeyword, setNewKeyword] = useState('')
   const [screenSize, setScreenSize] = useState({ width: 1920, height: 1080 })
   const [showPositionPicker, setShowPositionPicker] = useState(false)
+  const [showQuickAddPositionPicker, setShowQuickAddPositionPicker] = useState(false)
 
   // Username rename state
   const [showRenameForm, setShowRenameForm] = useState(false)
@@ -590,6 +591,17 @@ export default function Settings({ username }: SettingsProps) {
   // Handle position change
   const handlePositionChange = (x: number, y: number) => {
     handleUpdateSettings({ quickSearchCustomX: x, quickSearchCustomY: y })
+  }
+
+  // Open quick add position picker
+  const openQuickAddPositionPicker = async () => {
+    await fetchScreenSize()
+    setShowQuickAddPositionPicker(true)
+  }
+
+  // Handle quick add position change
+  const handleQuickAddPositionChange = (x: number, y: number) => {
+    handleUpdateSettings({ quickAddCustomX: x, quickAddCustomY: y })
   }
 
   // Handle window size change
@@ -1326,6 +1338,96 @@ export default function Settings({ username }: SettingsProps) {
               )}
             </CollapsibleSection>
 
+            {/* 快速添加浮窗 Section */}
+            <CollapsibleSection icon={Plus} title="快速添加浮窗">
+              {/* Quick Add Shortcut */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Key className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">快速添加快捷键</label>
+                </div>
+                <select
+                  value={settings.quickAddShortcut}
+                  onChange={async (e) => {
+                    const newShortcut = e.target.value
+                    try {
+                      await invoke('register_quick_add_shortcut', { shortcut: newShortcut })
+                      handleUpdateSettings({ quickAddShortcut: newShortcut })
+                    } catch (err) {
+                      console.error('Failed to register shortcut:', err)
+                      alert(`快捷键注册失败: ${err}`)
+                    }
+                  }}
+                  className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+                >
+                  <option value="CommandOrControl+Shift+A">Ctrl/Cmd + Shift + A</option>
+                  <option value="CommandOrControl+Shift+N">Ctrl/Cmd + Shift + N</option>
+                  <option value="CommandOrControl+Shift+D">Ctrl/Cmd + Shift + D</option>
+                  <option value="CommandOrControl+Alt+A">Ctrl/Cmd + Alt + A</option>
+                  <option value="Alt+Insert">Alt + Insert</option>
+                </select>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                  选择后立即生效，无需重启
+                </p>
+              </div>
+
+              {/* Quick Add Position */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Move className="w-4 h-4 text-slate-400" />
+                  <label className="text-sm text-slate-600 dark:text-slate-400">浮窗出现位置</label>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleUpdateSettings({ quickAddPositionMode: 'center' })}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                      settings.quickAddPositionMode === 'center'
+                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                    <span>居中</span>
+                  </button>
+                  <button
+                    onClick={() => handleUpdateSettings({ quickAddPositionMode: 'custom' })}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                      settings.quickAddPositionMode === 'custom'
+                        ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 ring-2 ring-violet-500'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Crosshair className="w-4 h-4" />
+                    <span>自定义</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Position Picker for Quick Add */}
+              {settings.quickAddPositionMode === 'custom' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">当前位置</div>
+                      <div className="text-sm font-mono text-violet-600 dark:text-violet-400">
+                        X: {settings.quickAddCustomX}, Y: {settings.quickAddCustomY}
+                      </div>
+                    </div>
+                    <button
+                      onClick={openQuickAddPositionPicker}
+                      className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Crosshair className="w-4 h-4" />
+                      <span>设置位置</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    浮窗大小: 480 × 500 像素
+                  </p>
+                </div>
+              )}
+            </CollapsibleSection>
+
             {/* 数据 Section */}
             <CollapsibleSection icon={Database} title="数据">
 
@@ -1526,6 +1628,18 @@ export default function Settings({ username }: SettingsProps) {
           screenHeight={screenSize.height}
           onChange={handlePositionChange}
           onClose={() => setShowPositionPicker(false)}
+        />
+      )}
+
+      {/* Quick Add Position Picker */}
+      {showQuickAddPositionPicker && (
+        <FullScreenPositionPicker
+          x={settings.quickAddCustomX}
+          y={settings.quickAddCustomY}
+          screenWidth={screenSize.width}
+          screenHeight={screenSize.height}
+          onChange={handleQuickAddPositionChange}
+          onClose={() => setShowQuickAddPositionPicker(false)}
         />
       )}
 
