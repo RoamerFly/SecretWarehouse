@@ -51,6 +51,18 @@ function AppContent() {
     }
   }, [])
 
+  // 监听 secrets-updated 事件（快速新增/编辑/删除后刷新列表）
+  useEffect(() => {
+    const unlisten = listen('secrets-updated', () => {
+      if (isUnlocked) {
+        fetchSecrets()
+      }
+    })
+    return () => {
+      unlisten.then(fn => fn())
+    }
+  }, [isUnlocked, fetchSecrets])
+
   useEffect(() => {
     if (!initialized.current && isUnlocked) {
       initialized.current = true

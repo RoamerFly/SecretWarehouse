@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
+import { listen, emit } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Plus, X, Eye, EyeOff, GripVertical, Save, Loader2 } from 'lucide-react'
 import { iconMap } from '../constants/icons'
@@ -225,6 +225,8 @@ export default function QuickAddWindow() {
       }
 
       setSuccess(true)
+      // 通知主窗口刷新列表
+      await emit('secrets-updated', null)
       setTimeout(() => {
         resetForm()
       }, 1000)
