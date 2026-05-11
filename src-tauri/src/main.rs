@@ -160,7 +160,7 @@ pub fn show_quick_search_window(app: &tauri::AppHandle) {
 
 fn create_quick_add_window(app: &tauri::AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let url = if cfg!(debug_assertions) {
-        WebviewUrl::External("http://localhost:1420#quick-add".parse().unwrap())
+        WebviewUrl::External("http://localhost:1420/#quick-add".parse().unwrap())
     } else {
         WebviewUrl::App("index.html#quick-add".into())
     };

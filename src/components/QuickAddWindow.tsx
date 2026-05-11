@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Plus, X, Eye, EyeOff, GripVertical, Save, Loader2 } from 'lucide-react'
 import { iconMap } from '../constants/icons'
 
@@ -46,7 +45,6 @@ export default function QuickAddWindow() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
-  const windowRef = useRef(getCurrentWindow())
 
   // 设置窗口位置
   const setWindowPosition = useCallback(async () => {
@@ -72,19 +70,6 @@ export default function QuickAddWindow() {
   const hideWindow = useCallback(async () => {
     await invoke('hide_quick_add_window')
   }, [])
-
-  // 标题栏拖动处理
-  const handleTitleMouseDown = async (e: React.MouseEvent) => {
-    // 如果点击的是按钮或按钮的子元素，不触发拖动
-    if ((e.target as HTMLElement).closest('button')) {
-      return
-    }
-    try {
-      await windowRef.current.startDragging()
-    } catch (err) {
-      console.error('Failed to start dragging:', err)
-    }
-  }
 
   // 重置表单
   const resetForm = useCallback(() => {
@@ -231,15 +216,15 @@ export default function QuickAddWindow() {
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-900 overflow-hidden" style={{ borderRadius: '12px' }}>
-      {/* 标题栏 - 使用 startDragging 实现拖动 */}
+      {/* 标题栏 - 使用 data-tauri-drag-region 实现拖动（完全照搬 QuickSearchWindow） */}
       <div
-        onMouseDown={handleTitleMouseDown}
+        data-tauri-drag-region
         className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none cursor-move"
       >
-        <div className="flex items-center gap-2">
-          <GripVertical className="w-4 h-4 text-slate-400" />
-          <Plus className="w-4 h-4 text-violet-500" />
-          <span className="text-xs font-medium text-slate-600 dark:text-slate-400">快速添加</span>
+        <div className="flex items-center gap-2" data-tauri-drag-region>
+          <GripVertical className="w-4 h-4 text-slate-400 pointer-events-none" />
+          <Plus className="w-4 h-4 text-violet-500 pointer-events-none" />
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-400" data-tauri-drag-region>快速添加</span>
         </div>
         <div className="flex items-center gap-1">
           <button
