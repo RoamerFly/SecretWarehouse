@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Plus, X, Eye, EyeOff, GripVertical, Save, Loader2 } from 'lucide-react'
 import { iconMap } from '../constants/icons'
 
@@ -70,6 +71,19 @@ export default function QuickAddWindow() {
   const hideWindow = useCallback(async () => {
     await invoke('hide_quick_add_window')
   }, [])
+
+  // 标题栏拖动处理（备份方案，与 data-tauri-drag-region 同时使用）
+  const handleTitleMouseDown = async (e: React.MouseEvent) => {
+    // 如果点击的是按钮或按钮的子元素，不触发拖动
+    if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+    try {
+      await getCurrentWindow().startDragging()
+    } catch (err) {
+      // 如果 data-tauri-drag-region 已处理，这里会报错，忽略即可
+    }
+  }
 
   // 重置表单
   const resetForm = useCallback(() => {
@@ -219,6 +233,7 @@ export default function QuickAddWindow() {
       {/* 标题栏 - 使用 data-tauri-drag-region 实现拖动 */}
       <div
         data-tauri-drag-region
+        onMouseDown={handleTitleMouseDown}
         className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 select-none cursor-move"
       >
         <div className="flex items-center gap-2" data-tauri-drag-region>
@@ -226,15 +241,17 @@ export default function QuickAddWindow() {
           <Plus className="w-4 h-4 text-violet-500 pointer-events-none" />
           <span className="text-xs font-medium text-slate-600 dark:text-slate-400" data-tauri-drag-region>快速添加</span>
         </div>
-        <button
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={hideWindow}
-          className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-          title="关闭"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={hideWindow}
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+            title="关闭"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* 表单内容 */}
