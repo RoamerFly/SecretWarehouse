@@ -8,6 +8,7 @@ SecretWarehouse
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+<img alt="Downloads" src="https://img.shields.io/github/downloads/RoamerFly/SecretWarehouse/total?style=for-the-badge&logo=github&color=34d399" />
 
 [快速开始](#-快速开始) · [功能特性](#-功能特性) · [界面预览](#-界面预览) · [安全架构](#-安全架构) · [开发计划](#-开发计划)
 
